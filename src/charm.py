@@ -198,7 +198,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
     def _on_collect_status(self, event: CollectStatusEvent):
         """Handle start event."""
         if not self.coordinator.is_coherent():
-            missing_roles = [role.value for role in self.coordinator.missing_roles()]
+            missing_roles = sorted([role.value for role in self.coordinator.missing_roles()])
             event.add_status(
                 ops.BlockedStatus(
                     f"Incoherent deployment: you are lacking some required Loki roles "

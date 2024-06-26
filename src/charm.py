@@ -407,6 +407,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
     def _update_loki_cluster(self):  # common exit hook
         """Build the config and publish everything to the application databag."""
+        if not self.unit.is_leader():
+            return
         if not self.coordinator.is_coherent():
             return
         tls = self._is_tls_ready

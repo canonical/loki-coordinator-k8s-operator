@@ -41,11 +41,11 @@ LOCATIONS_READ: List[Dict[str, Any]] = [
             },
             {
                 "directive": "proxy_set_header",
-                "args": ["Upgrade $http_upgrade"],
+                "args": ["Upgrade", "$http_upgrade"],
             },
             {
                 "directive": "proxy_set_header",
-                "args": ['Connection "upgrade"'],
+                "args": ["Connection", "upgrade"],
             },
         ],
     },

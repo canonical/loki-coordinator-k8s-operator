@@ -1,5 +1,5 @@
 ops
-git+https://github.com/canonical/cosl.git@feature/changeerror#egg=cosl
+cosl @ git+https://github.com/canonical/cos-lib@feature/changeerror
 pydantic
 # crossplane is a package from nginxinc to interact with the Nginx config
 crossplane

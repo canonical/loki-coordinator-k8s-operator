@@ -281,7 +281,7 @@ class LokiConfig:
             if region:
                 storage_config["aws"]["region"] = region
             if tls_ca_path:
-                storage_config["aws"]["tls_ca_path"] = tls_ca_path
+                storage_config["aws"]["http_config"]["ca_file"] = tls_ca_path
 
         return storage_config
 

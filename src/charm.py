@@ -58,7 +58,6 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         )
         self.ingress = IngressPerAppRequirer(
             charm=self,
-            port=urlparse(self.internal_url).port,
             strip_prefix=True,
             scheme=lambda: urlparse(self.internal_url).scheme,
         )
@@ -80,6 +79,9 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             workers_config=LokiConfig().config,
         )
 
+        if port := urlparse(self.internal_url).port:
+            self.ingress.provide_ingress_requirements(port=port)
+
         # FIXME: Should AlertmanagerConsumer it be in the Coordinator object?
         self.alertmanager_consumer = AlertmanagerConsumer(self, relation_name="alertmanager")
         self.grafana_source = GrafanaSourceProvider(
@@ -88,7 +90,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             source_url=self.external_url,
             extra_fields={"httpHeaderName1": "X-Scope-OrgID"},
             secure_extra_fields={"httpHeaderValue1": "anonymous"},
-            refresh_event=[self.coordinator.cluster.on.changed],
+            refresh_event=[
+                self.coordinator.cluster.on.changed,
+                self.on[self.coordinator.cert_handler.certificates_relation_name].relation_changed,
+                self.ingress.on.ready,
+            ],
         )
         self._consolidate_nginx_rules()
 
@@ -150,9 +156,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
     def internal_url(self) -> str:
         """Returns workload's FQDN. Used for ingress."""
         scheme = "http"
+        port = "8080"
         if hasattr(self, "coordinator") and self.coordinator.nginx.are_certificates_on_disk:
             scheme = "https"
-        return f"{scheme}://{self.hostname}:8080"
+            port = "443"
+        return f"{scheme}://{self.hostname}:{port}"
 
     @property
     def external_url(self) -> str:

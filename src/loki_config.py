@@ -7,7 +7,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Set
+from typing import Any, Dict, Iterable
 
 import yaml
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
@@ -176,7 +176,9 @@ class LokiConfig:
             "retention_period": f"{retention_period}d",
         }
 
-    def _memberlist_config(self, cluster_label: str, worker_addresses: Set[str]) -> Dict[str, Any]:
+    def _memberlist_config(
+        self, cluster_label: str, worker_addresses: Iterable[str]
+    ) -> Dict[str, Any]:
         return {
             "cluster_label": cluster_label,
             "join_members": list(worker_addresses),
@@ -251,7 +253,14 @@ class LokiConfig:
             endpoint = coordinator._s3_config["endpoint"]
             bucket_name = coordinator._s3_config["bucket_name"]
             insecure = coordinator._s3_config["insecure"]
-            region = coordinator._s3_config["region"]
+            region = (
+                coordinator._s3_config["region"] if "region" in coordinator._s3_config else None
+            )
+            tls_ca_path = (
+                coordinator._s3_config["tls_ca_path"]
+                if "tls_ca_path" in coordinator._s3_config
+                else None
+            )
 
             # The storage_config block configures one of many possible stores for both the index
             # and chunks. Which configuration to be picked should be defined in schema_config block.
@@ -269,6 +278,10 @@ class LokiConfig:
                 },
                 "s3forcepathstyle": True,
             }
+            if region:
+                storage_config["aws"]["region"] = region
+            if tls_ca_path:
+                storage_config["aws"]["tls_ca_path"] = tls_ca_path
 
         return storage_config
 

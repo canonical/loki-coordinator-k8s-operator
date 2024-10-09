@@ -58,7 +58,6 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         )
         self.ingress = IngressPerAppRequirer(
             charm=self,
-            port=urlparse(self.internal_url).port,
             strip_prefix=True,
             scheme=lambda: urlparse(self.internal_url).scheme,
         )
@@ -79,6 +78,9 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             nginx_config=NginxConfig().config,
             workers_config=LokiConfig().config,
         )
+
+        if port := urlparse(self.internal_url).port:
+            self.ingress.provide_ingress_requirements(port=port)
 
         # FIXME: Should AlertmanagerConsumer it be in the Coordinator object?
         self.alertmanager_consumer = AlertmanagerConsumer(self, relation_name="alertmanager")

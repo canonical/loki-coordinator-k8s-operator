@@ -88,7 +88,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             source_url=self.external_url,
             extra_fields={"httpHeaderName1": "X-Scope-OrgID"},
             secure_extra_fields={"httpHeaderValue1": "anonymous"},
-            refresh_event=[self.coordinator.cluster.on.changed],
+            refresh_event=[
+                self.coordinator.cluster.on.changed,
+                self.on[self.coordinator.cert_handler.certificates_relation_name].relation_changed,
+                self.ingress.on.ready,
+            ],
         )
         self._consolidate_nginx_rules()
 
@@ -150,9 +154,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
     def internal_url(self) -> str:
         """Returns workload's FQDN. Used for ingress."""
         scheme = "http"
+        port = "8080"
         if hasattr(self, "coordinator") and self.coordinator.nginx.are_certificates_on_disk:
             scheme = "https"
-        return f"{scheme}://{self.hostname}:8080"
+            port = "443"
+        return f"{scheme}://{self.hostname}:{port}"
 
     @property
     def external_url(self) -> str:

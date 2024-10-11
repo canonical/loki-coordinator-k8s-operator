@@ -113,6 +113,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
         self.framework.observe(self.ingress.on.revoked, self._on_ingress_revoked)
 
+        self.framework.observe(self.on.logging_relation_changed, self._on_logging_relation_changed)
+
     ##########################
     # === EVENT HANDLERS === #
     ##########################
@@ -129,6 +131,12 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         This event refreshes the PrometheusRemoteWriteProvider address.
         """
         logger.info("Ingress for app revoked")
+
+    def _on_logging_relation_changed(self, event: ops.RelationEvent):
+        # If there is a change in logging relation, let's update Loki endpoint
+        # We are listening to relation_change to handle the Loki scale down to 0 and scale up again
+        # when it is related with ingress. If not, endpoints will end up outdated in consumer side.
+        self.loki_provider.update_endpoint(url=self.external_url, relation=event.relation)
 
     ######################
     # === PROPERTIES === #

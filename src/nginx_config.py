@@ -233,7 +233,7 @@ class NginxConfig:
             nginx_locations.extend(LOCATIONS_WORKER)
         return nginx_locations
 
-    def _resolver(self, custom_resolver: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+    def _resolver(self, custom_resolver: Optional[str] = None) -> List[Dict[str, Any]]:
         if custom_resolver:
             return [{"directive": "resolver", "args": [custom_resolver]}]
         return [{"directive": "resolver", "args": ["kube-dns.kube-system.svc.cluster.local."]}]

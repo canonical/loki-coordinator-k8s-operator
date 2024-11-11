@@ -97,7 +97,7 @@ class LokiConfig:
             ),
             "memberlist": self._memberlist_config(
                 cluster_label=f"{coordinator._charm.model.name}-cluster",
-                worker_addresses=coordinator.cluster.gather_addresses(),
+                worker_addresses=set(coordinator.cluster.gather_addresses()),
             ),
             "querier": self._querier_config(),
             "query_range": self._query_range_config(),

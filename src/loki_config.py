@@ -7,7 +7,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Set
+from typing import Any, Dict, Tuple
 
 import yaml
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
@@ -97,7 +97,7 @@ class LokiConfig:
             ),
             "memberlist": self._memberlist_config(
                 cluster_label=f"{coordinator._charm.model.name}-cluster",
-                worker_addresses=set(coordinator.cluster.gather_addresses()),
+                worker_addresses=coordinator.cluster.gather_addresses(),
             ),
             "querier": self._querier_config(),
             "query_range": self._query_range_config(),
@@ -176,7 +176,9 @@ class LokiConfig:
             "retention_period": f"{retention_period}d",
         }
 
-    def _memberlist_config(self, cluster_label: str, worker_addresses: Set[str]) -> Dict[str, Any]:
+    def _memberlist_config(
+        self, cluster_label: str, worker_addresses: Tuple[str, ...]
+    ) -> Dict[str, Any]:
         return {
             "cluster_label": cluster_label,
             "join_members": list(worker_addresses),

@@ -4,6 +4,9 @@ output "app_name" {
 
 output "endpoints" {
   value = {
+    # Requires
+    
+    # Provides
     loki_cluster = "loki-cluster"
   }
 }

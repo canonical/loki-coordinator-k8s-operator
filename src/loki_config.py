@@ -7,7 +7,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Tuple
 
 import yaml
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
@@ -177,7 +177,7 @@ class LokiConfig:
         }
 
     def _memberlist_config(
-        self, cluster_label: str, worker_addresses: Iterable[str]
+        self, cluster_label: str, worker_addresses: Tuple[str, ...]
     ) -> Dict[str, Any]:
         return {
             "cluster_label": cluster_label,

@@ -7,7 +7,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Set
 
 import yaml
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
@@ -70,9 +70,11 @@ class LokiConfig:
 
     def __init__(
         self,
+        alertmanager_urls: Set[str],
         root_data_dir: Path = Path("/data"),
         recovery_data_dir: Path = Path("/recovery-data"),
     ):
+        self._alertmanager_urls = alertmanager_urls
         self._root_data_dir = root_data_dir
         self._recovery_data_dir = recovery_data_dir
 
@@ -215,12 +217,14 @@ class LokiConfig:
         #
         # But we are setting Loki's external url
 
-        # FIXME: Implement in Coordinator:
-        # self.alertmanager_consumer = AlertmanagerConsumer(self, relation_name="alertmanager")
-        #
         return {
-            "alertmanager_url": "",  # self.alertmanager_url,
+            "alertmanager_url": ",".join(sorted(self._alertmanager_urls)),
             "external_url": coordinator._external_url,
+            "rule_path": str(self._root_data_dir / "data-ruler"),
+            "enable_api": True,
+            "storage": {"local": {"directory": str(self._root_data_dir / "data-alerts")}},
+            "ring": {"kvstore": {"store": "memberlist"}},
+
         }
 
     def _schema_config(self) -> Dict[str, Any]:

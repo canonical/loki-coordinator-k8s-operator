@@ -7,7 +7,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Tuple, Set
+from typing import Any, Dict, Set, Tuple
 
 import yaml
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
@@ -225,7 +225,6 @@ class LokiConfig:
             # "enable_api": True,
             # "storage": {"local": {"directory": str(self._root_data_dir / "data-alerts")}},
             # "ring": {"kvstore": {"store": "memberlist"}},
-
         }
 
     def _schema_config(self) -> Dict[str, Any]:

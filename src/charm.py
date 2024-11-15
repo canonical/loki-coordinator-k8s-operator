@@ -79,7 +79,9 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
                 "s3": "s3",
             },
             nginx_config=NginxConfig().config,
-            workers_config=LokiConfig(alertmanager_urls=self.alertmanager_consumer.get_cluster_info()).config,
+            workers_config=LokiConfig(
+                alertmanager_urls=self.alertmanager_consumer.get_cluster_info()
+            ).config,
             workload_tracing_protocols=["jaeger_thrift_http"],
         )
 

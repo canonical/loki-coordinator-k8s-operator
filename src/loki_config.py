@@ -220,10 +220,11 @@ class LokiConfig:
         return {
             "alertmanager_url": ",".join(sorted(self._alertmanager_urls)),
             "external_url": coordinator._external_url,
-            "rule_path": str(self._root_data_dir / "data-ruler"),
-            "enable_api": True,
-            "storage": {"local": {"directory": str(self._root_data_dir / "data-alerts")}},
-            "ring": {"kvstore": {"store": "memberlist"}},
+            # TODO: remove these, for now trying to make it work
+            # "rule_path": str(self._root_data_dir / "data-ruler"),
+            # "enable_api": True,
+            # "storage": {"local": {"directory": str(self._root_data_dir / "data-alerts")}},
+            # "ring": {"kvstore": {"store": "memberlist"}},
 
         }
 

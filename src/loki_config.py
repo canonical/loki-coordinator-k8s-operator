@@ -130,9 +130,7 @@ class LokiConfig:
                 1 if backend_scale < REPLICATION_MIN_WORKERS else DEFAULT_REPLICATION
             ),
             "compactor_grpc_address": coordinator._external_url,
-            "storage": {
-                "s3": self._s3_storage_config(coordinator)
-            }
+            "storage": {"s3": self._s3_storage_config(coordinator)},
         }
 
     def _compactor_config(self, retention_period: int) -> Dict[str, Any]:

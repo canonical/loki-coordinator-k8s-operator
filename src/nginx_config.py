@@ -70,7 +70,7 @@ LOCATIONS_BACKEND: List[Dict] = [
     },
     {
         "directive": "location",
-        "args": ["=", "/prometheus/api/v1/rules"],
+        "args": ["=", "/prometheus"],
         "block": [
             {
                 "directive": "proxy_pass",

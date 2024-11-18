@@ -7,7 +7,7 @@
 import logging
 import os
 from pathlib import Path
-from typing import Any, Dict, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 import yaml
 from cosl.coordinated_workers.coordinator import ClusterRolesConfig, Coordinator
@@ -130,6 +130,9 @@ class LokiConfig:
                 1 if backend_scale < REPLICATION_MIN_WORKERS else DEFAULT_REPLICATION
             ),
             "compactor_grpc_address": coordinator._external_url,
+            "storage": {
+                "s3": self._s3_storage_config(coordinator)
+            }
         }
 
     def _compactor_config(self, retention_period: int) -> Dict[str, Any]:
@@ -220,6 +223,7 @@ class LokiConfig:
         return {
             "alertmanager_url": ",".join(sorted(self._alertmanager_urls)),
             "external_url": coordinator._external_url,
+            "enable_sharding": True,
             # TODO: remove these, for now trying to make it work
             # "rule_path": str(self._root_data_dir / "data-ruler"),
             # "enable_api": True,
@@ -241,6 +245,35 @@ class LokiConfig:
             ]
         }
 
+    def _s3_storage_config(self, coordinator: Coordinator) -> Optional[Dict[str, Any]]:
+        """Build the s3_storage_config section for Loki."""
+        if not coordinator.s3_ready:
+            return None
+
+        access_key = coordinator._s3_config["access_key_id"]
+        secret_access_key = coordinator._s3_config["secret_access_key"]
+        endpoint = coordinator._s3_config["endpoint"]
+        bucket_name = coordinator._s3_config["bucket_name"]
+        insecure = coordinator._s3_config["insecure"]
+        region = coordinator._s3_config["region"]
+
+        s3_storage_config = {
+            "bucketnames": bucket_name,
+            "endpoint": endpoint,
+            "region": region,
+            "access_key_id": access_key,
+            "secret_access_key": secret_access_key,
+            "insecure": insecure,
+            "http_config": {
+                "idle_conn_timeout": "90s",
+                "response_header_timeout": "0s",
+                "insecure_skip_verify": False,
+            },
+            "s3forcepathstyle": True,
+        }
+
+        return s3_storage_config
+
     def _storage_config(self, coordinator: Coordinator) -> Dict[str, Any]:
         # Ref: https://grafana.com/docs/loki/latest/configure/examples/configuration-examples/#2-s3-cluster-exampleyaml
         storage_config: Dict[str, Any] = {
@@ -252,29 +285,9 @@ class LokiConfig:
 
         # Ref: https://grafana.com/docs/loki/latest/configure/examples/configuration-examples/#10-expanded-s3-snippetyaml
         if coordinator.s3_ready:
-            access_key = coordinator._s3_config["access_key_id"]
-            secret_access_key = coordinator._s3_config["secret_access_key"]
-            endpoint = coordinator._s3_config["endpoint"]
-            bucket_name = coordinator._s3_config["bucket_name"]
-            insecure = coordinator._s3_config["insecure"]
-            region = coordinator._s3_config["region"]
-
             # The storage_config block configures one of many possible stores for both the index
             # and chunks. Which configuration to be picked should be defined in schema_config block.
-            storage_config["aws"] = {
-                "bucketnames": bucket_name,
-                "endpoint": endpoint,
-                "region": region,
-                "access_key_id": access_key,
-                "secret_access_key": secret_access_key,
-                "insecure": insecure,
-                "http_config": {
-                    "idle_conn_timeout": "90s",
-                    "response_header_timeout": "0s",
-                    "insecure_skip_verify": False,
-                },
-                "s3forcepathstyle": True,
-            }
+            storage_config["aws"] = self._s3_storage_config(coordinator)
 
         return storage_config
 

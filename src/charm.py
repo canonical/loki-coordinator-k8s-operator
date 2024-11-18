@@ -244,7 +244,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
                     "rules",
                     "sync",
                     *rules_file_paths,
-                    f"--address={self.external_url}/loki",
+                    f"--address={self.external_url}",
                     "--id=fake",  # multitenancy is disabled, the default tenant is 'fake'
                 ],
                 encoding="utf-8",

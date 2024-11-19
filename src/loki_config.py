@@ -70,7 +70,7 @@ class LokiConfig:
 
     def __init__(
         self,
-        alertmanager_urls: Set[str],
+        alertmanager_urls: Set[str] = set(),
         root_data_dir: Path = Path("/data"),
         recovery_data_dir: Path = Path("/recovery-data"),
     ):

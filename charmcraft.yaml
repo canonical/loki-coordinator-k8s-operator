@@ -50,7 +50,7 @@ parts:
       - curl
       - unzip
     override-pull: |
-      curl -fLo lokitool.zip https://github.com/grafana/loki/releases/latest/download/lokitool-linux-${CRAFT_TARGET_ARCH}.zip
+      curl -fLo lokitool.zip https://github.com/grafana/loki/releases/download/v3.2.1/lokitool-linux-${CRAFT_TARGET_ARCH}.zip
       unzip lokitool.zip && rm lokitool.zip
       mv lokitool-linux-${CRAFT_TARGET_ARCH} lokitool
       chmod +x lokitool

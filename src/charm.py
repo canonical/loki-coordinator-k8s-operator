@@ -135,7 +135,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
     def _on_pebble_ready(self, _) -> None:
         """Make sure the `lokitool` binary is in the workload container."""
-        self._get_lokitool()
+        self._push_lokitool()
 
     ######################
     # === PROPERTIES === #
@@ -204,7 +204,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
         return paths
 
-    def _get_lokitool(self):
+    def _push_lokitool(self):
         """Copy the `lokitool` binary to the workload container."""
         with open("lokitool", "rb") as f:
             self._nginx_container.push("/usr/bin/lokitool", source=f, permissions=0o744)
@@ -223,7 +223,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
         # Get mimirtool if this is the first execution
         if not self._pull(ALERTS_HASH_PATH):
-            self._get_lokitool()
+            self._push_lokitool()
 
         loki_alerts = self.loki_provider.alerts
         alerts_hash = sha256(str(loki_alerts))

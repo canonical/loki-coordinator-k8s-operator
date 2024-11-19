@@ -94,7 +94,7 @@ def test_build_common_config(loki_config, coordinator, addresses_by_role, replic
                 },
                 "s3forcepathstyle": True,
             }
-        }
+        },
     }
     assert common_config == expected_config_http
 

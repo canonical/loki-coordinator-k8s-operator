@@ -107,7 +107,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             path=f"{external_url.path}/loki/api/v1/push",
         )
 
-        self._set_alerts()
+        if self._nginx_container.can_connect():
+            self._set_alerts()
 
         ######################################
         # === EVENT HANDLER REGISTRATION === #
@@ -217,9 +218,6 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             if isinstance(hashable, str):
                 hashable = hashable.encode("utf-8")
             return hashlib.sha256(hashable).hexdigest()
-
-        if not self._nginx_container.can_connect():
-            return
 
         # Get mimirtool if this is the first execution
         if not self._pull(ALERTS_HASH_PATH):

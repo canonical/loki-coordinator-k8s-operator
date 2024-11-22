@@ -136,7 +136,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
     def _on_pebble_ready(self, _) -> None:
         """Make sure the `lokitool` binary is in the workload container."""
-        self._push_lokitool()
+        self._ensure_lokitool()
 
     ######################
     # === PROPERTIES === #
@@ -205,8 +205,10 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
         return paths
 
-    def _push_lokitool(self):
+    def _ensure_lokitool(self):
         """Copy the `lokitool` binary to the workload container."""
+        if self._nginx_container.exists("/usr/bin/mimirtool"):
+            return
         with open("lokitool", "rb") as f:
             self._nginx_container.push("/usr/bin/lokitool", source=f, permissions=0o744)
 
@@ -220,8 +222,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             return hashlib.sha256(hashable).hexdigest()
 
         # Get mimirtool if this is the first execution
-        if not self._pull(ALERTS_HASH_PATH):
-            self._push_lokitool()
+        self._ensure_lokitool()
 
         loki_alerts = self.loki_provider.alerts
         alerts_hash = sha256(str(loki_alerts))
@@ -250,7 +251,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             if lokitool_output.stdout:
                 logger.info(f"lokitool: {lokitool_output.stdout.read().strip()}")
             if lokitool_output.stderr:
-                logger.info(f"lokitool (err): {lokitool_output.stderr.read().strip()}")
+                logger.error(f"lokitool (err): {lokitool_output.stderr.read().strip()}")
 
 
 if __name__ == "__main__":  # pragma: nocover

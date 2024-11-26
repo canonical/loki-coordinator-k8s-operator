@@ -3,6 +3,7 @@
 """Nginx workload."""
 
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
 import crossplane
@@ -62,6 +63,40 @@ def _locations_write(tls: bool) -> List[Dict[str, Any]]:
     ]
 
 
+def _locations_backend(tls: bool) -> List[Dict[str, Any]]:
+    return [
+        {
+            "directive": "location",
+            "args": ["=", "/loki/api/v1/rules"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://backend" if not tls else "https://backend"],
+                },
+            ],
+        },
+        {
+            "directive": "location",
+            "args": ["=", "/prometheus"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://backend" if not tls else "https://backend"],
+                },
+            ],
+        },
+        {
+            "directive": "location",
+            "args": ["=", "/api/v1/rules"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://backend/loki/api/v1/rules" if not tls else "https://backend/loki/api/v1/rules"],
+                },
+            ],
+        },
+    ]
+
 # Locations shared by all the workers, regardless of the role
 def _locations_worker(tls: bool) -> List[Dict[Any, Any]]:
     return [
@@ -119,6 +154,9 @@ LOCATIONS_BASIC: List[Dict] = [
 
 class NginxConfig:
     """Helper class to manage the nginx workload."""
+
+    def __init__(self):
+        self.dns_IP_address = _get_dns_ip_address()
 
     def config(self, coordinator: Coordinator) -> str:
         """Build and return the Nginx configuration."""
@@ -238,15 +276,18 @@ class NginxConfig:
         nginx_locations = LOCATIONS_BASIC.copy()
         roles = addresses_by_role.keys()
 
-        if "read" in roles:
-            nginx_locations.extend(_locations_read(tls))
         if "write" in roles:
             nginx_locations.extend(_locations_write(tls))
+        if "backend" in roles:
+            nginx_locations.extend(_locations_backend(tls))
+        if "read" in roles:
+            nginx_locations.extend(_locations_read(tls))
+
         if roles:
             nginx_locations.extend(_locations_worker(tls))
         return nginx_locations
 
-    def _resolver(self, custom_resolver: Optional[List[Any]] = None) -> List[Dict[str, Any]]:
+    def _resolver(self, custom_resolver: Optional[str] = None) -> List[Dict[str, Any]]:
         if custom_resolver:
             return [{"directive": "resolver", "args": [custom_resolver]}]
         return [{"directive": "resolver", "args": ["kube-dns.kube-system.svc.cluster.local."]}]
@@ -289,6 +330,9 @@ class NginxConfig:
                     {"directive": "ssl_certificate_key", "args": [KEY_PATH]},
                     {"directive": "ssl_protocols", "args": ["TLSv1", "TLSv1.1", "TLSv1.2"]},
                     {"directive": "ssl_ciphers", "args": ["HIGH:!aNULL:!MD5"]},  # pyright: ignore
+                    # specify resolver to ensure that if a unit IP changes,
+                    # we reroute to the new one
+                    *self._resolver(custom_resolver=self.dns_IP_address),
                     *self._locations(addresses_by_role, tls),
                 ],
             }
@@ -304,6 +348,17 @@ class NginxConfig:
                     "directive": "proxy_set_header",
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
+                *self._resolver(custom_resolver=self.dns_IP_address),
                 *self._locations(addresses_by_role, tls),
             ],
         }
+
+
+def _get_dns_ip_address():
+    """Obtain DNS ip address from /etc/resolv.conf."""
+    resolv = Path("/etc/resolv.conf").read_text()
+    for line in resolv.splitlines():
+        if line.startswith("nameserver"):
+            # assume there's only one
+            return line.split()[1].strip()
+    raise RuntimeError("cannot find nameserver in /etc/resolv.conf")

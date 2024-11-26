@@ -91,11 +91,16 @@ def _locations_backend(tls: bool) -> List[Dict[str, Any]]:
             "block": [
                 {
                     "directive": "proxy_pass",
-                    "args": ["http://backend/loki/api/v1/rules" if not tls else "https://backend/loki/api/v1/rules"],
+                    "args": [
+                        "http://backend/loki/api/v1/rules"
+                        if not tls
+                        else "https://backend/loki/api/v1/rules"
+                    ],
                 },
             ],
         },
     ]
+
 
 # Locations shared by all the workers, regardless of the role
 def _locations_worker(tls: bool) -> List[Dict[Any, Any]]:

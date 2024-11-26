@@ -274,9 +274,9 @@ class LokiConfig:
             },
             "s3forcepathstyle": True,
         }
-        
+
         if tls_ca_path:
-            storage_config["aws"]["http_config"]["ca_file"] = tls_ca_path
+            s3_storage_config["aws"]["http_config"]["ca_file"] = tls_ca_path
 
         return s3_storage_config
 

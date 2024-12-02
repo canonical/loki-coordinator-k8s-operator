@@ -14,111 +14,129 @@ logger = logging.getLogger(__name__)
 
 LOKI_PORT = 3100
 
-LOCATIONS_READ: List[Dict[str, Any]] = [
-    {
-        "directive": "location",
-        "args": ["=", "/loki/api/v1/tail"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://read"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["~", "/loki/api/.*"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://read"],
-            },
-            {
-                "directive": "proxy_set_header",
-                "args": ["Upgrade", "$http_upgrade"],
-            },
-            {
-                "directive": "proxy_set_header",
-                "args": ["Connection", "upgrade"],
-            },
-        ],
-    },
-]
 
-LOCATIONS_WRITE: List[Dict] = [
-    {
-        "directive": "location",
-        "args": ["=", "/loki/api/v1/push"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://write"],
-            },
-        ],
-    },
-]
+def _locations_read(tls: bool) -> List[Dict[str, Any]]:
+    return [
+        {
+            "directive": "location",
+            "args": ["=", "/loki/api/v1/tail"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://read" if not tls else "https://read"],
+                },
+            ],
+        },
+        {
+            "directive": "location",
+            "args": ["~", "/loki/api/.*"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://read" if not tls else "https://read"],
+                },
+                {
+                    "directive": "proxy_set_header",
+                    "args": ["Upgrade", "$http_upgrade"],
+                },
+                {
+                    "directive": "proxy_set_header",
+                    "args": ["Connection", "upgrade"],
+                },
+            ],
+        },
+    ]
 
-LOCATIONS_BACKEND: List[Dict] = [
-    {
-        "directive": "location",
-        "args": ["=", "/loki/api/v1/rules"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://backend"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["=", "/prometheus"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://backend"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["=", "/api/v1/rules"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://backend/loki/api/v1/rules"],
-            },
-        ],
-    },
-]
+
+def _locations_write(tls: bool) -> List[Dict[str, Any]]:
+    return [
+        {
+            "directive": "location",
+            "args": ["=", "/loki/api/v1/push"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://write" if not tls else "https://write"],
+                },
+            ],
+        },
+    ]
+
+
+def _locations_backend(tls: bool) -> List[Dict[str, Any]]:
+    return [
+        {
+            "directive": "location",
+            "args": ["=", "/loki/api/v1/rules"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://backend" if not tls else "https://backend"],
+                },
+            ],
+        },
+        {
+            "directive": "location",
+            "args": ["=", "/prometheus"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://backend" if not tls else "https://backend"],
+                },
+            ],
+        },
+        {
+            "directive": "location",
+            "args": ["=", "/api/v1/rules"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": [
+                        "http://backend/loki/api/v1/rules"
+                        if not tls
+                        else "https://backend/loki/api/v1/rules"
+                    ],
+                },
+            ],
+        },
+    ]
+
 
 # Locations shared by all the workers, regardless of the role
-LOCATIONS_WORKER: List[Dict] = [
-    {
-        "directive": "location",
-        "args": ["=", "/loki/api/v1/format_query"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://worker"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["=", "/loki/api/v1/status/buildinfo"],
-        "block": [
-            {
-                "directive": "proxy_pass",
-                "args": ["http://worker"],
-            },
-        ],
-    },
-    {
-        "directive": "location",
-        "args": ["=", "/ring"],
-        "block": [{"directive": "proxy_pass", "args": ["http://worker"]}],
-    },
-]
+def _locations_worker(tls: bool) -> List[Dict[Any, Any]]:
+    return [
+        {
+            "directive": "location",
+            "args": ["=", "/loki/api/v1/format_query"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://worker" if not tls else "https://worker"],
+                },
+            ],
+        },
+        {
+            "directive": "location",
+            "args": ["=", "/loki/api/v1/status/buildinfo"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://worker" if not tls else "https://worker"],
+                },
+            ],
+        },
+        {
+            "directive": "location",
+            "args": ["=", "/ring"],
+            "block": [
+                {
+                    "directive": "proxy_pass",
+                    "args": ["http://worker" if not tls else "https://worker"],
+                }
+            ],
+        },
+    ]
+
 
 LOCATIONS_BASIC: List[Dict] = [
     {
@@ -257,18 +275,21 @@ class NginxConfig:
 
         return nginx_upstreams
 
-    def _locations(self, addresses_by_role: Dict[str, Set[str]]) -> List[Dict[str, Any]]:
+    def _locations(
+        self, addresses_by_role: Dict[str, Set[str]], tls: bool
+    ) -> List[Dict[str, Any]]:
         nginx_locations = LOCATIONS_BASIC.copy()
         roles = addresses_by_role.keys()
 
         if "write" in roles:
-            nginx_locations.extend(LOCATIONS_WRITE)
+            nginx_locations.extend(_locations_write(tls))
         if "backend" in roles:
-            nginx_locations.extend(LOCATIONS_BACKEND)
+            nginx_locations.extend(_locations_backend(tls))
         if "read" in roles:
-            nginx_locations.extend(LOCATIONS_READ)
+            nginx_locations.extend(_locations_read(tls))
+
         if roles:
-            nginx_locations.extend(LOCATIONS_WORKER)
+            nginx_locations.extend(_locations_worker(tls))
         return nginx_locations
 
     def _resolver(self, custom_resolver: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -317,7 +338,7 @@ class NginxConfig:
                     # specify resolver to ensure that if a unit IP changes,
                     # we reroute to the new one
                     *self._resolver(custom_resolver=self.dns_IP_address),
-                    *self._locations(addresses_by_role),
+                    *self._locations(addresses_by_role, tls),
                 ],
             }
 
@@ -333,7 +354,7 @@ class NginxConfig:
                     "args": ["X-Scope-OrgID", "$ensured_x_scope_orgid"],
                 },
                 *self._resolver(custom_resolver=self.dns_IP_address),
-                *self._locations(addresses_by_role),
+                *self._locations(addresses_by_role, tls),
             ],
         }
 

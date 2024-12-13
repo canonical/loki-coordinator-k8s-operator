@@ -255,4 +255,4 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
 
 if __name__ == "__main__":  # pragma: nocover
-    ops.main.main(LokiCoordinatorK8SOperatorCharm)
+    ops.main(LokiCoordinatorK8SOperatorCharm)

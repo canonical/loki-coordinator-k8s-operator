@@ -68,7 +68,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             roles_config=LOKI_ROLES_CONFIG,
             external_url=self.external_url,
             worker_metrics_port=3100,
-            endpoints={
+            endpoints={  # type: ignore
                 "certificates": "certificates",
                 "cluster": "loki-cluster",
                 "grafana-dashboards": "grafana-dashboards-provider",

@@ -59,7 +59,6 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         )
         self.ingress = IngressPerAppRequirer(
             charm=self,
-            port=urlparse(self.internal_url).port,
             strip_prefix=True,
             scheme=lambda: urlparse(self.internal_url).scheme,
         )
@@ -69,7 +68,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             roles_config=LOKI_ROLES_CONFIG,
             external_url=self.external_url,
             worker_metrics_port=3100,
-            endpoints={
+            endpoints={  # type: ignore
                 "certificates": "certificates",
                 "cluster": "loki-cluster",
                 "grafana-dashboards": "grafana-dashboards-provider",
@@ -99,7 +98,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             source_url=self.external_url,
             extra_fields={"httpHeaderName1": "X-Scope-OrgID"},
             secure_extra_fields={"httpHeaderValue1": "anonymous"},
-            refresh_event=[self.coordinator.cluster.on.changed],
+            refresh_event=[
+                self.coordinator.cluster.on.changed,
+                self.on[self.coordinator.cert_handler.certificates_relation_name].relation_changed,
+                self.ingress.on.ready,
+            ],
         )
 
         external_url = urlparse(self.external_url)
@@ -120,6 +123,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
         self.framework.observe(self.ingress.on.revoked, self._on_ingress_revoked)
 
+        self.framework.observe(self.on.logging_relation_changed, self._on_logging_relation_changed)
+
     ##########################
     # === EVENT HANDLERS === #
     ##########################
@@ -137,6 +142,16 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         """
         logger.info("Ingress for app revoked")
 
+    def _on_logging_relation_changed(self, event: ops.RelationEvent):
+        # If there is a change in logging relation, let's update Loki endpoint
+        # We are listening to relation_change to handle the Loki scale down to 0 and scale up again
+        # when it is related with ingress. If not, endpoints will end up outdated in consumer side.
+        self.loki_provider.update_endpoint(url=self.external_url, relation=event.relation)
+
+    def _on_pebble_ready(self, _) -> None:
+        """Make sure the `lokitool` binary is in the workload container."""
+        self._ensure_lokitool()
+
     ######################
     # === PROPERTIES === #
     ######################
@@ -150,9 +165,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
     def internal_url(self) -> str:
         """Returns workload's FQDN. Used for ingress."""
         scheme = "http"
+        port = "8080"
         if hasattr(self, "coordinator") and self.coordinator.nginx.are_certificates_on_disk:
             scheme = "https"
-        return f"{scheme}://{self.hostname}:8080"
+            port = "443"
+        return f"{scheme}://{self.hostname}:{port}"
 
     @property
     def external_url(self) -> str:

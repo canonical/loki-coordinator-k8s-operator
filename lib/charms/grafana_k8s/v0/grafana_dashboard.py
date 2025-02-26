@@ -186,7 +186,6 @@ import subprocess
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import yaml
@@ -209,7 +208,6 @@ from ops.framework import (
     StoredState,
 )
 from ops.model import Relation
-from cosl import LZMABase64
 from cosl import LZMABase64, DashboardPath40UID
 
 # The unique Charmhub library identifier, never change it

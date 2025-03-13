@@ -254,6 +254,11 @@ class LokiConfig:
         bucket_name = coordinator._s3_config["bucket_name"]
         insecure = coordinator._s3_config["insecure"]
         region = coordinator._s3_config["region"]
+        tls_ca_path = (
+            coordinator._s3_config["tls_ca_path"]
+            if "tls_ca_path" in coordinator._s3_config
+            else None
+        )
 
         s3_storage_config = {
             "bucketnames": bucket_name,
@@ -269,6 +274,9 @@ class LokiConfig:
             },
             "s3forcepathstyle": True,
         }
+
+        if tls_ca_path:
+            s3_storage_config["aws"]["http_config"]["ca_file"] = tls_ca_path
 
         return s3_storage_config
 

@@ -17,7 +17,7 @@ from src.loki_config import (
         ({"querier": 1}, False),
         ({"distributor": 1}, False),
         ({"distributor": 1, "ingester": 1}, False),
-        ({role: 1 for role in MINIMAL_DEPLOYMENT}, True),
+        (dict.fromkeys(MINIMAL_DEPLOYMENT, 1), True),
         (RECOMMENDED_DEPLOYMENT, True),
     ),
 )
@@ -39,7 +39,7 @@ def test_coherent(mock_coordinator, roles, expected):
         ({"query-frontend": 1}, False),
         ({"distributor": 1}, False),
         ({"distributor": 1, "ingester": 1}, False),
-        ({role: 1 for role in MINIMAL_DEPLOYMENT}, False),
+        (dict.fromkeys(MINIMAL_DEPLOYMENT, 1), False),
         (RECOMMENDED_DEPLOYMENT, True),
     ),
 )

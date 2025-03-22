@@ -37,23 +37,20 @@ parts:
 
   cos-tool:
     plugin: dump
-    source: .
-    build-packages:
-      - curl
-    override-pull: |
-      curl -L -O https://github.com/canonical/cos-tool/releases/latest/download/cos-tool-${CRAFT_TARGET_ARCH}
-      chmod +x cos-tool-*
+    source: https://github.com/canonical/cos-tool/releases/latest/download/cos-tool-${CRAFT_ARCH_BUILD_FOR}
+    source-type: file
+    permissions:
+      - path: cos-tool-${CRAFT_ARCH_BUILD_FOR}
+        mode: "755"
   lokitool:
     plugin: dump
-    source: .
-    build-packages:
-      - curl
-      - unzip
-    override-pull: |
-      curl -fLo lokitool.zip https://github.com/grafana/loki/releases/download/v3.2.1/lokitool-linux-${CRAFT_TARGET_ARCH}.zip
-      unzip lokitool.zip && rm lokitool.zip
-      mv lokitool-linux-${CRAFT_TARGET_ARCH} lokitool
-      chmod +x lokitool
+    source: https://github.com/grafana/loki/releases/download/v3.2.1/lokitool-linux-${CRAFT_ARCH_BUILD_FOR}.zip
+    source-type: file
+    organize:
+      lokitool-linux-${CRAFT_ARCH_BUILD_FOR}: lokitool
+    permissions:
+      - path: lokitool
+        mode: "755"
 
 containers:
   nginx:

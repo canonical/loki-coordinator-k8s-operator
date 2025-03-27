@@ -41,7 +41,7 @@ parts:
     source-type: file
     permissions:
       - path: cos-tool-${CRAFT_ARCH_BUILD_FOR}
-        mode: "755"
+        mode: "500"
   lokitool:
     plugin: dump
     source: https://github.com/grafana/loki/releases/download/v3.2.1/lokitool-linux-${CRAFT_ARCH_BUILD_FOR}.zip
@@ -50,7 +50,7 @@ parts:
       lokitool-linux-${CRAFT_ARCH_BUILD_FOR}: lokitool
     permissions:
       - path: lokitool
-        mode: "755"
+        mode: "500"
 
 containers:
   nginx:

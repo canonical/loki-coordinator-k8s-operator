@@ -17,7 +17,7 @@ def mock_ipv6(enable: bool):
         yield
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def nginx_config():
     def _nginx_config(tls=False, ipv6=True):
         with mock_ipv6(ipv6):

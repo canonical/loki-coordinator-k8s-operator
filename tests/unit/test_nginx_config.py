@@ -1,9 +1,13 @@
+import tempfile
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from nginx_config import NginxConfig
+
+sample_dns_ip = "198.18.0.0"
 
 
 @contextmanager
@@ -35,6 +39,7 @@ def coordinator():
     coord.s3_ready = MagicMock(return_value=True)
     coord.nginx = MagicMock()
     coord.nginx.are_certificates_on_disk = MagicMock(return_value=True)
+    coord.hostname = "localhost"  # crossplane.build does not allow unittest.mock objects
     return coord
 
 
@@ -51,6 +56,14 @@ def topology():
         }
     )
     return top
+
+
+@contextmanager
+def mock_resolv_conf(contents: str):
+    with tempfile.NamedTemporaryFile() as tf:
+        Path(tf.name).write_text(contents)
+        with patch("nginx_config.RESOLV_CONF_PATH", tf.name):
+            yield
 
 
 @pytest.mark.parametrize(
@@ -104,3 +117,43 @@ def test_servers_config(ipv6, tls):
         assert ipv6_directive in server_config["block"]
     else:
         assert ipv6_directive not in server_config["block"]
+
+
+def _assert_config_per_role(source_dict, address, prepared_config, tls):
+    # as entire config is in a format that's hard to parse (and crossplane returns a string), we look for servers,
+    # upstreams and correct proxy/grpc_pass instructions.
+    # FIXME we get -> server "1.2.3.5:<MagicMock name=\'mock.nginx.options.__getitem__() ..." since we mock the coordinator
+    # FIXME How can we test this? And where do we get our ports from?
+    for port in source_dict.values():
+        assert f"server {address}:{port};" in prepared_config
+        assert f"listen {port}" in prepared_config
+        assert f"listen [::]:{port}" in prepared_config
+    for protocol in source_dict.keys():
+        sanitised_protocol = protocol.replace("_", "-")
+        assert f"upstream {sanitised_protocol}" in prepared_config
+
+        if "grpc" in protocol:
+            assert f"set $backend grpc{'s' if tls else ''}://{sanitised_protocol}"
+            assert "grpc_pass $backend" in prepared_config
+        else:
+            assert f"set $backend http{'s' if tls else ''}://{sanitised_protocol}"
+            assert "proxy_pass $backend" in prepared_config
+
+
+@pytest.mark.parametrize("tls", (True, False))
+def test_nginx_config_contains_upstreams_and_proxy_pass(
+    context, nginx_container, coordinator, addresses, tls
+):
+    coordinator.nginx.are_certificates_on_disk = tls
+    with mock_resolv_conf(f"nameserver {sample_dns_ip}"):
+        nginx = NginxConfig()
+
+    prepared_config = nginx.config(coordinator)
+    assert f"resolver {sample_dns_ip};" in prepared_config
+
+    for role, addresses in addresses.items():
+        for address in addresses:
+            if role == "distributor":
+                _assert_config_per_role({"ssl": 443}, address, prepared_config, tls)
+            if role == "query-frontend":
+                _assert_config_per_role({"ssl": 443}, address, prepared_config, tls)

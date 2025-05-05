@@ -259,15 +259,17 @@ class NginxConfig:
                         #     "directive": "zone",
                         #     "args": [f"{role}_zone", "64k"],
                         # },
-                        {
-                            "directive": "server",
-                            "args": [
-                                f"{addr}:{worker_port}",
-                                # TODO: uncomment the below arg when nginx version >= 1.27.3
-                                #  "resolve"
-                            ],
-                        }
-                        for addr in addresses
+                        *(
+                            {
+                                "directive": "server",
+                                "args": [
+                                    f"{addr}:{worker_port}",
+                                    # TODO: uncomment the below arg when nginx version >= 1.27.3
+                                    #  "resolve"
+                                ],
+                            }
+                            for addr in addresses
+                        ),
                     ],
                 }
             )

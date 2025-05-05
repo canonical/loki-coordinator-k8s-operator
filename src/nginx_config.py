@@ -20,7 +20,8 @@ from loki_config import ROLES
 logger = logging.getLogger(__name__)
 
 LOKI_PORT = 3100
-LOKI_TLS_PORT = 443
+NGINX_PORT = 8080
+NGINX_TLS_PORT = 443
 
 LOCATIONS_WRITE: List[NginxLocationConfig] = [
     NginxLocationConfig(path="/loki/api/v1/push", backend="write",modifier= NginxLocationModifier(NginxLocationModifier("="))),
@@ -60,7 +61,7 @@ class NginxHelper:
     def server_ports_to_locations(self) -> Dict[int, List[NginxLocationConfig]]:
         """Generate a mapping from server ports to a list of Nginx location configurations."""
         return {
-            LOKI_TLS_PORT if self._tls_available else LOKI_PORT: LOCATIONS_WRITE + LOCATIONS_BACKEND + LOCATIONS_READ + LOCATIONS_WORKER
+            NGINX_TLS_PORT if self._tls_available else NGINX_PORT: LOCATIONS_WRITE + LOCATIONS_BACKEND + LOCATIONS_READ + LOCATIONS_WORKER
         }
 
     @property

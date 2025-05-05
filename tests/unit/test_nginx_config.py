@@ -5,8 +5,8 @@ import pytest
 from cosl.coordinated_workers.nginx import NginxConfig
 
 from nginx_config import (
-    LOKI_PORT,
-    LOKI_TLS_PORT,
+    NGINX_PORT,
+    NGINX_TLS_PORT,
     NginxHelper,
 )
 
@@ -44,7 +44,7 @@ def test_upstreams_config(nginx_config, addresses_by_role):
             "directive": "upstream",
             "args": ["read"],
             "block": [
-                {"directive": "server", "args": [f"{addr}:{LOKI_PORT}"]}
+                {"directive": "server", "args": [f"{addr}:{NGINX_PORT}"]}
                 for addr in addresses_by_role["read"]
             ],
         },
@@ -52,7 +52,7 @@ def test_upstreams_config(nginx_config, addresses_by_role):
             "directive": "upstream",
             "args": ["worker"],
             "block": [
-                {"directive": "server", "args": [f"{addr}:{LOKI_PORT}"]}
+                {"directive": "server", "args": [f"{addr}:{NGINX_PORT}"]}
                 for addr in addresses_by_role["read"]
             ],
         },
@@ -69,9 +69,9 @@ def test_servers_config(ipv6, tls, nginx_config):
     server_config = nginx_config(tls=tls, ipv6=ipv6).get_config(
         addresses_by_role={"read": ["address.one"]}, tls=tls
     )
-    ipv4_args = f"{LOKI_TLS_PORT} ssl" if tls else f"{LOKI_PORT}"
+    ipv4_args = f"{NGINX_TLS_PORT} ssl" if tls else f"{NGINX_PORT}"
     assert f"listen {ipv4_args}" in  server_config
-    ipv6_args = f"[::]:{LOKI_TLS_PORT} ssl" if tls else f"[::]:{LOKI_PORT}"
+    ipv6_args = f"[::]:{NGINX_TLS_PORT} ssl" if tls else f"[::]:{NGINX_PORT}"
     if ipv6:
         assert f"listen {ipv6_args}" in server_config
     else:

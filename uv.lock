@@ -351,7 +351,7 @@ wheels = [
 [[package]]
 name = "cosl"
 version = "0.1.0"
-source = { git = "https://github.com/canonical/cos-lib?rev=TAP-390#b536b94e4d8d56d31f084aa46e4372e81474ad61" }
+source = { git = "https://github.com/canonical/cos-lib?rev=TAP-390#da15021180b650ed4b00b16e758a6ea23f6bfd6f" }
 dependencies = [
     { name = "lightkube" },
     { name = "ops" },

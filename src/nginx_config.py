@@ -10,6 +10,7 @@ from cosl.coordinated_workers.nginx import (
     CERT_PATH,
     KEY_PATH,
     NginxLocationConfig,
+    NginxLocationModifier,
     NginxUpstream,
 )
 from ops import Container
@@ -22,23 +23,23 @@ LOKI_PORT = 3100
 LOKI_TLS_PORT = 443
 
 LOCATIONS_WRITE: List[NginxLocationConfig] = [
-    NginxLocationConfig(path="/loki/api/v1/push", backend="write",modifier="="),
+    NginxLocationConfig(path="/loki/api/v1/push", backend="write",modifier= NginxLocationModifier(NginxLocationModifier("="))),
 ]
 
 LOCATIONS_BACKEND: List[NginxLocationConfig] = [
-    NginxLocationConfig(path="/loki/api/v1/rules", backend="backend",modifier="="),
-    NginxLocationConfig(path="/prometheus", backend="backend",modifier="="),
-    NginxLocationConfig(path="/api/v1/rules", backend="backend", backend_url="/loki/api/v1/rules",modifier="="),
+    NginxLocationConfig(path="/loki/api/v1/rules", backend="backend",modifier=NginxLocationModifier("=")),
+    NginxLocationConfig(path="/prometheus", backend="backend",modifier=NginxLocationModifier("=")),
+    NginxLocationConfig(path="/api/v1/rules", backend="backend", backend_url="/loki/api/v1/rules",modifier=NginxLocationModifier("=")),
 ]
 LOCATIONS_READ: List[NginxLocationConfig] = [
-    NginxLocationConfig(path="/loki/api/v1/tail", backend="read", modifier="="),
-    NginxLocationConfig(path="/loki/api/.*", backend="read", modifier="~",headers={"Upgrade": "$http_upgrade", "Connection": "upgrade"})
+    NginxLocationConfig(path="/loki/api/v1/tail", backend="read", modifier=NginxLocationModifier("=")),
+    NginxLocationConfig(path="/loki/api/.*", backend="read", modifier=NginxLocationModifier("~"),headers={"Upgrade": "$http_upgrade", "Connection": "upgrade"})
 ]
 # Locations shared by all the workers, regardless of the role
 LOCATIONS_WORKER: List[NginxLocationConfig] = [
-    NginxLocationConfig(path="/loki/api/v1/format_query", backend="worker",modifier="="),
-    NginxLocationConfig(path="/loki/api/v1/status/buildinfo", backend="worker",modifier="="),
-    NginxLocationConfig(path="/ring", backend="worker",modifier="="),
+    NginxLocationConfig(path="/loki/api/v1/format_query", backend="worker",modifier=NginxLocationModifier("=")),
+    NginxLocationConfig(path="/loki/api/v1/status/buildinfo", backend="worker",modifier=NginxLocationModifier("=")),
+    NginxLocationConfig(path="/ring", backend="worker",modifier=NginxLocationModifier("=")),
 ]
 
 class NginxHelper:

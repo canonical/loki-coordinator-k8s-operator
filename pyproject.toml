@@ -6,7 +6,8 @@ requires-python = "~=3.10"
 
 dependencies = [
   "ops",
-  "cosl>=0.0.55",
+  # FIXME: pull cosl from pypi
+  "cosl@git+https://github.com/canonical/cos-lib@TAP-390",
   "pydantic>2.0",
   "cryptography",
   "jsonschema",

@@ -38,17 +38,22 @@ def nginx_config():
 def test_upstreams_config(nginx_config, addresses_by_role):
     upstreams_config = nginx_config(tls=False).get_config(addresses_by_role, False)
     # assert read upstream block
-    for role, addrs in addresses_by_role.items():
+    addresses = [address for address_list in addresses_by_role.values() for address in address_list]
+    for role in addresses_by_role.keys():
         assert f"upstream {role}" in upstreams_config
-        for addr in addrs:
-            assert f"server {addr}:{3100}" in upstreams_config
+    for addr in addresses:
+        assert f"server {addr}:{3100}" in upstreams_config
+    # assert the generic `worker` upstream block
+    assert "upstream worker" in upstreams_config
+    for addr in addresses:
+        assert f"server {addr}:{3100}" in upstreams_config
 
 @pytest.mark.parametrize("tls", (True, False))
 @pytest.mark.parametrize("ipv6", (True, False))
 def test_servers_config(ipv6, tls, nginx_config):
 
     server_config = nginx_config(tls=tls, ipv6=ipv6).get_config(
-        addresses_by_role={"read": ["address.one"]}, tls=tls
+        {"read": ["address.one"]}, tls
     )
     ipv4_args = "443 ssl" if tls else f"{8080}"
     assert f"listen {ipv4_args}" in  server_config

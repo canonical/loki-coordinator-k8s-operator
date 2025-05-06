@@ -23,21 +23,21 @@ LOKI_PORT = 3100
 NGINX_PORT = 8080
 NGINX_TLS_PORT = 443
 
-LOCATIONS_WRITE: List[NginxLocationConfig] = [
+_locations_write: List[NginxLocationConfig] = [
     NginxLocationConfig(path="/loki/api/v1/push", backend="write",modifier= NginxLocationModifier(NginxLocationModifier("="))),
 ]
 
-LOCATIONS_BACKEND: List[NginxLocationConfig] = [
+_locations_backend: List[NginxLocationConfig] = [
     NginxLocationConfig(path="/loki/api/v1/rules", backend="backend",modifier=NginxLocationModifier("=")),
     NginxLocationConfig(path="/prometheus", backend="backend",modifier=NginxLocationModifier("=")),
     NginxLocationConfig(path="/api/v1/rules", backend="backend", backend_url="/loki/api/v1/rules",modifier=NginxLocationModifier("=")),
 ]
-LOCATIONS_READ: List[NginxLocationConfig] = [
+_locations_read: List[NginxLocationConfig] = [
     NginxLocationConfig(path="/loki/api/v1/tail", backend="read", modifier=NginxLocationModifier("=")),
     NginxLocationConfig(path="/loki/api/.*", backend="read", modifier=NginxLocationModifier("~"),headers={"Upgrade": "$http_upgrade", "Connection": "upgrade"})
 ]
 # Locations shared by all the workers, regardless of the role
-LOCATIONS_WORKER: List[NginxLocationConfig] = [
+_locations_worker: List[NginxLocationConfig] = [
     NginxLocationConfig(path="/loki/api/v1/format_query", backend="worker",modifier=NginxLocationModifier("=")),
     NginxLocationConfig(path="/loki/api/v1/status/buildinfo", backend="worker",modifier=NginxLocationModifier("=")),
     NginxLocationConfig(path="/ring", backend="worker",modifier=NginxLocationModifier("=")),
@@ -61,7 +61,7 @@ class NginxHelper:
     def server_ports_to_locations(self) -> Dict[int, List[NginxLocationConfig]]:
         """Generate a mapping from server ports to a list of Nginx location configurations."""
         return {
-            NGINX_TLS_PORT if self._tls_available else NGINX_PORT: LOCATIONS_WRITE + LOCATIONS_BACKEND + LOCATIONS_READ + LOCATIONS_WORKER
+            NGINX_TLS_PORT if self._tls_available else NGINX_PORT: _locations_write + _locations_backend + _locations_read + _locations_worker
         }
 
     @property

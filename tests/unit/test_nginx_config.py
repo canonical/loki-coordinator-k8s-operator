@@ -5,8 +5,6 @@ import pytest
 from cosl.coordinated_workers.nginx import NginxConfig
 
 from nginx_config import (
-    NGINX_PORT,
-    NGINX_TLS_PORT,
     NginxHelper,
 )
 
@@ -39,28 +37,11 @@ def nginx_config():
 )
 def test_upstreams_config(nginx_config, addresses_by_role):
     upstreams_config = nginx_config(tls=False).get_config(addresses_by_role, False)
-    expected_config = [
-        {
-            "directive": "upstream",
-            "args": ["read"],
-            "block": [
-                {"directive": "server", "args": [f"{addr}:{NGINX_PORT}"]}
-                for addr in addresses_by_role["read"]
-            ],
-        },
-        {
-            "directive": "upstream",
-            "args": ["worker"],
-            "block": [
-                {"directive": "server", "args": [f"{addr}:{NGINX_PORT}"]}
-                for addr in addresses_by_role["read"]
-            ],
-        },
-    ]
-    # TODO assert that the two are the same
-    assert upstreams_config is not None
-    assert expected_config is not None
-
+    # assert read upstream block
+    for role, addrs in addresses_by_role.items():
+        assert f"upstream {role}" in upstreams_config
+        for addr in addrs:
+            assert f"server {addr}:{3100}" in upstreams_config
 
 @pytest.mark.parametrize("tls", (True, False))
 @pytest.mark.parametrize("ipv6", (True, False))
@@ -69,9 +50,9 @@ def test_servers_config(ipv6, tls, nginx_config):
     server_config = nginx_config(tls=tls, ipv6=ipv6).get_config(
         addresses_by_role={"read": ["address.one"]}, tls=tls
     )
-    ipv4_args = f"{NGINX_TLS_PORT} ssl" if tls else f"{NGINX_PORT}"
+    ipv4_args = "443 ssl" if tls else f"{8080}"
     assert f"listen {ipv4_args}" in  server_config
-    ipv6_args = f"[::]:{NGINX_TLS_PORT} ssl" if tls else f"[::]:{NGINX_PORT}"
+    ipv6_args = "[::]:443 ssl" if tls else f"[::]:{8080}"
     if ipv6:
         assert f"listen {ipv6_args}" in server_config
     else:

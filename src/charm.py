@@ -16,22 +16,24 @@ import socket
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 
-import cosl.coordinated_workers.nginx
+import coordinated_workers.nginx
 import ops
 import yaml
 from charms.alertmanager_k8s.v1.alertmanager_dispatch import AlertmanagerConsumer
+from charms.catalogue_k8s.v1.catalogue import CatalogueItem
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.loki_k8s.v1.loki_push_api import LokiPushApiProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import charm_tracing_config
-from charms.traefik_k8s.v2.ingress import IngressPerAppReadyEvent, IngressPerAppRequirer
-from cosl.coordinated_workers.coordinator import Coordinator
+from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
+from coordinated_workers.coordinator import Coordinator
+from coordinated_workers.nginx import NginxConfig
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from ops.model import ModelError
 from ops.pebble import Error as PebbleError
 
 from loki_config import LOKI_ROLES_CONFIG, LokiConfig
-from nginx_config import NginxConfig
+from nginx_config import NginxHelper
 
 # Log messages can be retrieved using juju debug-log
 logger = logging.getLogger(__name__)
@@ -57,6 +59,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         self._nginx_prometheus_exporter_container = self.unit.get_container(
             "nginx-prometheus-exporter"
         )
+        self._nginx_helper = NginxHelper(self._nginx_container)
         self.ingress = IngressPerAppRequirer(
             charm=self,
             strip_prefix=True,
@@ -81,15 +84,25 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
                 "receive-datasource": None,
                 "catalogue": None,
             },
-            nginx_config=NginxConfig().config,
+            nginx_config=NginxConfig(
+                server_name=self.hostname,
+                upstream_configs=self._nginx_helper.upstreams(),
+                server_ports_to_locations=self._nginx_helper.server_ports_to_locations(),
+                enable_health_check=True,
+                enable_status_page=True,
+            ),
             workers_config=LokiConfig(
                 alertmanager_urls=self.alertmanager_consumer.get_cluster_info()
             ).config,
+            worker_ports=lambda _: tuple({3100}),
+            resources_requests=self.get_resource_requests,
+            container_name="charm",  # container to which resource limits will be applied
             workload_tracing_protocols=["jaeger_thrift_http"],
+            catalogue_item=self._catalogue_item,
         )
 
         self.charm_tracing_endpoint, self.server_ca_cert = charm_tracing_config(
-            self.coordinator.charm_tracing, cosl.coordinated_workers.nginx.CA_CERT_PATH
+            self.coordinator.charm_tracing, coordinated_workers.nginx.CA_CERT_PATH
         )
 
         self.grafana_source = GrafanaSourceProvider(
@@ -116,41 +129,6 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
         # do this regardless of what event we are processing
         self._reconcile()
-
-        ######################################
-        # === EVENT HANDLER REGISTRATION === #
-        ######################################
-        self.framework.observe(self.ingress.on.ready, self._on_ingress_ready)
-        self.framework.observe(self.ingress.on.revoked, self._on_ingress_revoked)
-
-        self.framework.observe(self.on.logging_relation_changed, self._on_logging_relation_changed)
-
-    ##########################
-    # === EVENT HANDLERS === #
-    ##########################
-    def _on_ingress_ready(self, event: IngressPerAppReadyEvent):
-        """Log the obtained ingress address.
-
-        This event refreshes the PrometheusRemoteWriteProvider address.
-        """
-        logger.info("Ingress for app ready on '%s'", event.url)
-
-    def _on_ingress_revoked(self, _) -> None:
-        """Log the ingress address being revoked.
-
-        This event refreshes the PrometheusRemoteWriteProvider address.
-        """
-        logger.info("Ingress for app revoked")
-
-    def _on_logging_relation_changed(self, event: ops.RelationEvent):
-        # If there is a change in logging relation, let's update Loki endpoint
-        # We are listening to relation_change to handle the Loki scale down to 0 and scale up again
-        # when it is related with ingress. If not, endpoints will end up outdated in consumer side.
-        self.loki_provider.update_endpoint(url=self.external_url, relation=event.relation)
-
-    def _on_pebble_ready(self, _) -> None:
-        """Make sure the `lokitool` binary is in the workload container."""
-        self._ensure_lokitool()
 
     ######################
     # === PROPERTIES === #
@@ -180,6 +158,20 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         except ModelError as e:
             logger.error("Failed obtaining external url: %s.", e)
         return self.internal_url
+
+    @property
+    def _catalogue_item(self) -> CatalogueItem:
+        """A catalogue application entry for this Mimir instance."""
+        return CatalogueItem(
+            name="Loki",
+            icon="text",
+            url="",
+            description=(
+                "Loki provides a horizontally scalable, highly available, "
+                "multi-tenant, log aggregation system. "
+                "(no user interface available)"
+            ),
+        )
 
     ###########################
     # === UTILITY METHODS === #
@@ -290,6 +282,10 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             for _, ds_uid in ds_uids.items():
                 raw_datasources.append({"type": "loki", "uid": ds_uid, "grafana_uid": grafana_uid})
         self.coordinator.datasource_exchange.publish(datasources=raw_datasources)
+
+    def get_resource_requests(self, _) -> Dict[str, str]:
+        """Returns a dictionary for the "requests" portion of the resources requirements."""
+        return {"cpu": "50m", "memory": "100Mi"}
 
     def _reconcile(self):
         # This method contains unconditional update logic, i.e. logic that should be executed

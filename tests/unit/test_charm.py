@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest as pytest
-from cosl.coordinated_workers.coordinator import Coordinator
+from coordinated_workers.coordinator import Coordinator
 
 from src.loki_config import (
     LOKI_ROLES_CONFIG,
@@ -10,19 +10,19 @@ from src.loki_config import (
 )
 
 
-@patch("cosl.coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
+@patch("coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
 @pytest.mark.parametrize(
     "roles, expected",
     (
         ({"querier": 1}, False),
         ({"distributor": 1}, False),
         ({"distributor": 1, "ingester": 1}, False),
-        ({role: 1 for role in MINIMAL_DEPLOYMENT}, True),
+        (dict.fromkeys(MINIMAL_DEPLOYMENT, 1), True),
         (RECOMMENDED_DEPLOYMENT, True),
     ),
 )
 def test_coherent(mock_coordinator, roles, expected):
-    mc = Coordinator(None, None, "", "", 0, None, None, None)
+    mc = Coordinator(None, None, "", "", 0, None, None, None)  # type: ignore
     cluster_mock = MagicMock()
     cluster_mock.gather_roles = MagicMock(return_value=roles)
     mc.cluster = cluster_mock
@@ -32,19 +32,19 @@ def test_coherent(mock_coordinator, roles, expected):
     assert mc.is_coherent is expected
 
 
-@patch("cosl.coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
+@patch("coordinated_workers.coordinator.Coordinator.__init__", return_value=None)
 @pytest.mark.parametrize(
     "roles, expected",
     (
         ({"query-frontend": 1}, False),
         ({"distributor": 1}, False),
         ({"distributor": 1, "ingester": 1}, False),
-        ({role: 1 for role in MINIMAL_DEPLOYMENT}, False),
+        (dict.fromkeys(MINIMAL_DEPLOYMENT, 1), False),
         (RECOMMENDED_DEPLOYMENT, True),
     ),
 )
 def test_recommended(mock_coordinator, roles, expected):
-    mc = Coordinator(None, None, "", "", 0, None, None, None)
+    mc = Coordinator(None, None, "", "", 0, None, None, None)  # type: ignore
     cluster_mock = MagicMock()
     cluster_mock.gather_roles = MagicMock(return_value=roles)
     mc.cluster = cluster_mock

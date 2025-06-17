@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
-from cosl.coordinated_workers.interface import (
+from coordinated_workers.interfaces.cluster import (
     ClusterRequirerAppData,
     ClusterRequirerUnitData,
 )
@@ -24,7 +24,7 @@ nginx_container = Container(
     can_connect=True,
     layers={
         "foo": Layer(
-            {
+            {  # type: ignore
                 "summary": "foo",
                 "description": "bar",
                 "services": {
@@ -68,12 +68,14 @@ s3_relation = Relation(
 )
 cluster_relation = Relation(
     "loki-cluster",
-    remote_app_data=ClusterRequirerAppData(role="all").dump(),
+    remote_app_data=dict(ClusterRequirerAppData(role="all").dump()),
     remote_units_data={
-        0: ClusterRequirerUnitData(
-            address="http://example.com",
-            juju_topology={"application": "app", "unit": "unit", "charm_name": "charmname"},
-        ).dump()
+        0: dict(
+            ClusterRequirerUnitData(
+                address="http://example.com",
+                juju_topology={"application": "app", "unit": "unit", "charm_name": "charmname"},  # pyright: ignore
+            ).dump()
+        )
     },
 )
 

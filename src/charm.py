@@ -22,6 +22,7 @@ import yaml
 from charms.alertmanager_k8s.v1.alertmanager_dispatch import AlertmanagerConsumer
 from charms.catalogue_k8s.v1.catalogue import CatalogueItem
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
+from charms.istio_beacon_k8s.v0.service_mesh import Endpoint, Method, Policy, ServiceMeshConsumer
 from charms.loki_k8s.v1.loki_push_api import LokiPushApiProvider
 from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
 from charms.tempo_coordinator_k8s.v0.tracing import charm_tracing_config
@@ -124,6 +125,35 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             path=f"{external_url.path}/loki/api/v1/push",
         )
 
+        self._mesh = ServiceMeshConsumer(
+            self,
+            policies=[
+                Policy(
+                    relation="logging",
+                    endpoints=[
+                        Endpoint(
+                            ports=[external_url.port
+                                   or NginxHelper._nginx_tls_port if self.coordinator.tls_available
+                                   else NginxHelper._nginx_port],
+                            methods=[Method.post],
+                            paths=["/loki/api/v1/push"],
+                        )
+                    ],
+                ),
+                Policy(
+                    relation="self-metrics-endpoint",
+                    endpoints=[
+                        Endpoint(
+                            ports=[external_url.port
+                                   or NginxHelper._nginx_tls_port if self.coordinator.tls_available
+                                   else NginxHelper._nginx_port],
+                            methods=[Method.get],
+                            paths=["/metrics"],
+                        ),
+                    ],
+                ),
+            ],
+        )
         # do this regardless of what event we are processing
         self._reconcile()
 

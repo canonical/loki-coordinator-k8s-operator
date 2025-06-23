@@ -99,6 +99,11 @@ provides:
     optional: true
     description: |
       Integration to share with other COS components this charm's datasources, and receive theirs.
+  provide-cmr-mesh:
+    interface: cross_model_mesh
+    description: |
+      Access a cross-model application from loki coordinator via the service mesh.
+      This relation provides additional data required by the service mesh to enforce cross-model authorization policies
 
 requires:
   alertmanager:
@@ -149,6 +154,16 @@ requires:
     optional: true
     description: |
       Integration to help users discover Loki's deployment.
+  service-mesh:
+    limit: 1
+    interface: service_mesh
+    description: |
+      Subscribe this charm into a service mesh to enforce authorization policies.
+  require-cmr-mesh:
+    interface: cross_model_mesh
+    description: |
+      Allow a cross-model application access to loki coordinator via the service mesh.
+      This relation provides additional data required by the service mesh to enforce cross-model authorization policies.
 
 config:
   options:

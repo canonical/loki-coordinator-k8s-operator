@@ -118,7 +118,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             source_url=self.external_url,
             extra_fields={"httpHeaderName1": "X-Scope-OrgID"},
             secure_extra_fields={"httpHeaderValue1": "anonymous"},
-            refresh_event=[self.coordinator.cluster.on.changed],
+            refresh_event=[
+                self.coordinator.cluster.on.changed,
+                self.on[self.coordinator.cert_handler.certificates_relation_name].relation_changed,
+                self.ingress.on.ready,
+            ],
         )
 
         external_url = urlparse(self.external_url)

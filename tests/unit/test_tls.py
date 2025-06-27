@@ -1,9 +1,10 @@
 # Copyright 2024 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import scenario
+from coordinated_workers.nginx import Nginx
 from helpers import get_relation_data
 from scenario import Relation, State
 
@@ -44,14 +45,10 @@ def test_ingress_tls(
         # AND Loki publishes its Nginx non-TLS port in the ingress databag
         assert get_relation_data(state_out.relations, "ingress", "port") == str(NGINX_PORT)
 
-    # AND WHEN the ingress databag is updated
-    with context(context.on.relation_changed(ingress), state_in) as mgr:
-        charm = mgr.charm
-        charm.coordinator.nginx = MagicMock()
-        # AND TLS was/is available
-        charm.coordinator.nginx.are_certificates_on_disk = True
-
-        state_out = mgr.run()
+    # AND WHEN TLS is enabled
+    with patch.object(Nginx, "are_certificates_on_disk", return_value=True):
+        # AND the ingress databag is updated
+        state_out = context.run(context.on.relation_changed(ingress), state_in)
 
         # THEN Loki publishes its Nginx TLS port in the ingress databag
         assert get_relation_data(state_out.relations, "ingress", "scheme") == '"https"'

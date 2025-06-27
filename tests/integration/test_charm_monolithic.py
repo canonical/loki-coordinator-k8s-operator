@@ -11,6 +11,7 @@ import pytest
 import requests
 from helpers import (
     ACCESS_KEY,
+    COS_CHANNEL,
     SECRET_KEY,
     charm_resources,
     configure_minio,
@@ -67,7 +68,7 @@ async def test_deploy_workers(ops_test: OpsTest):
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker",
-        channel="latest/edge",
+        channel=COS_CHANNEL,
         config={"role-all": True},
         trust=True,
     )

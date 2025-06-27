@@ -70,18 +70,21 @@ async def test_deploy_workers(ops_test: OpsTest):
         "worker-read",
         channel=COS_CHANNEL,
         config={"role-read": True},
+        trust=True,
     )
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-write",
         channel=COS_CHANNEL,
         config={"role-write": True},
+        trust=True,
     )
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-backend",
         channel=COS_CHANNEL,
         config={"role-backend": True},
+        trust=True,
     )
     await ops_test.model.wait_for_idle(
         apps=["worker-read", "worker-write", "worker-backend"], status="blocked"

@@ -11,7 +11,6 @@ import pytest
 import requests
 from helpers import (
     ACCESS_KEY,
-    COS_CHANNEL,
     SECRET_KEY,
     charm_resources,
     configure_minio,
@@ -29,14 +28,14 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str):
+async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str, cos_channel):
     """Build the charm-under-test and deploy it together with related charms."""
     assert ops_test.model is not None  # for pyright
     await asyncio.gather(
         ops_test.model.deploy(loki_charm, "loki", resources=charm_resources(), trust=True),
-        ops_test.model.deploy("prometheus-k8s", "prometheus", channel=COS_CHANNEL, trust=True),
-        ops_test.model.deploy("loki-k8s", "loki-mono", channel=COS_CHANNEL, trust=True),
-        ops_test.model.deploy("grafana-k8s", "grafana", channel=COS_CHANNEL, trust=True),
+        ops_test.model.deploy("prometheus-k8s", "prometheus", channel=cos_channel, trust=True),
+        ops_test.model.deploy("loki-k8s", "loki-mono", channel=cos_channel, trust=True),
+        ops_test.model.deploy("grafana-k8s", "grafana", channel=cos_channel, trust=True),
         ops_test.model.deploy("flog-k8s", "flog", channel="latest/stable", trust=True),
         ops_test.model.deploy("traefik-k8s", "traefik", channel="latest/stable", trust=True),
         # Deploy and configure Minio and S3
@@ -62,13 +61,13 @@ async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str):
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_deploy_workers(ops_test: OpsTest):
+async def test_deploy_workers(ops_test: OpsTest, cos_channel):
     """Deploy the Loki workers."""
     assert ops_test.model is not None
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-read",
-        channel=COS_CHANNEL,
+        channel=cos_channel,
         config={"role-read": True},
         num_units=3,
         trust=True,
@@ -76,7 +75,7 @@ async def test_deploy_workers(ops_test: OpsTest):
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-write",
-        channel=COS_CHANNEL,
+        channel=cos_channel,
         config={"role-write": True},
         num_units=3,
         trust=True,
@@ -84,7 +83,7 @@ async def test_deploy_workers(ops_test: OpsTest):
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-backend",
-        channel=COS_CHANNEL,
+        channel=cos_channel,
         config={"role-backend": True},
         num_units=3,
         trust=True,

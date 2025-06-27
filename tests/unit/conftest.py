@@ -43,30 +43,14 @@ def context(loki_charm):
 
 @pytest.fixture(scope="function")
 def nginx_container():
+    address_arg = f"--address=http://{socket.getfqdn()}:{NGINX_PORT}"
+    address_arg_tls = f"--address=https://{socket.getfqdn()}:{NGINX_TLS_PORT}"
     return Container(
         "nginx",
         can_connect=True,
         execs={
-            Exec(
-                [
-                    "lokitool",
-                    "rules",
-                    "sync",
-                    f"--address=http://{socket.getfqdn()}:{NGINX_PORT}",
-                    "--id=fake",
-                ],
-                return_code=0,
-            ),
-            Exec(
-                [
-                    "lokitool",
-                    "rules",
-                    "sync",
-                    f"--address=https://{socket.getfqdn()}:{NGINX_TLS_PORT}",
-                    "--id=fake",
-                ],
-                return_code=0,
-            )
+            Exec(["lokitool", "rules", "sync", address_arg, "--id=fake"], return_code=0),
+            Exec(["lokitool", "rules", "sync", address_arg_tls, "--id=fake"], return_code=0),
         },
     )
 

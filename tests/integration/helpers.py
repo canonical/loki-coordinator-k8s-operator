@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 
 ACCESS_KEY = "AccessKey"
 SECRET_KEY = "SecretKey"
-COS_CHANNEL = "2/edge"
 
 
 def charm_resources(metadata_file="charmcraft.yaml") -> Dict[str, str]:
@@ -126,14 +125,14 @@ async def get_traefik_proxied_endpoints(
     return json.loads(action_result.results["proxied-endpoints"])
 
 
-async def deploy_tempo_cluster(ops_test: OpsTest):
+async def deploy_tempo_cluster(ops_test: OpsTest, cos_channel: str):
     """Deploys tempo in its HA version together with minio and s3-integrator."""
     assert ops_test.model
     tempo_app = "tempo"
     worker_app = "tempo-worker"
     s3_app = "s3-tempo"
-    tempo_worker_charm_url, worker_channel = "tempo-worker-k8s", COS_CHANNEL
-    tempo_coordinator_charm_url, coordinator_channel = "tempo-coordinator-k8s", COS_CHANNEL
+    tempo_worker_charm_url, worker_channel = "tempo-worker-k8s", cos_channel
+    tempo_coordinator_charm_url, coordinator_channel = "tempo-coordinator-k8s", cos_channel
     await ops_test.model.deploy(
         tempo_worker_charm_url, application_name=worker_app, channel=worker_channel, trust=True
     )

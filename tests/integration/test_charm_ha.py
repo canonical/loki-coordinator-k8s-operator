@@ -10,6 +10,7 @@ import pytest
 import requests
 from helpers import (
     ACCESS_KEY,
+    COS_CHANNEL,
     SECRET_KEY,
     charm_resources,
     configure_minio,
@@ -34,9 +35,9 @@ async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str):
     assert ops_test.model is not None  # for pyright
     await asyncio.gather(
         ops_test.model.deploy(loki_charm, "loki", resources=charm_resources(), trust=True),
-        ops_test.model.deploy("prometheus-k8s", "prometheus", channel="latest/stable", trust=True),
-        ops_test.model.deploy("loki-k8s", "loki-mono", channel="latest/stable", trust=True),
-        ops_test.model.deploy("grafana-k8s", "grafana", channel="latest/stable", trust=True),
+        ops_test.model.deploy("prometheus-k8s", "prometheus", channel=COS_CHANNEL, trust=True),
+        ops_test.model.deploy("loki-k8s", "loki-mono", channel=COS_CHANNEL, trust=True),
+        ops_test.model.deploy("grafana-k8s", "grafana", channel=COS_CHANNEL, trust=True),
         ops_test.model.deploy("flog-k8s", "flog", channel="latest/stable", trust=True),
         ops_test.model.deploy("traefik-k8s", "traefik", channel="latest/stable", trust=True),
         # Deploy and configure Minio and S3
@@ -67,19 +68,19 @@ async def test_deploy_workers(ops_test: OpsTest):
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-read",
-        channel="latest/edge",
+        channel=COS_CHANNEL,
         config={"role-read": True},
     )
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-write",
-        channel="latest/edge",
+        channel=COS_CHANNEL,
         config={"role-write": True},
     )
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-backend",
-        channel="latest/edge",
+        channel=COS_CHANNEL,
         config={"role-backend": True},
     )
     await ops_test.model.wait_for_idle(

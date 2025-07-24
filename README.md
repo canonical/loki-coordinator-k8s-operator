@@ -16,7 +16,7 @@ $ juju deploy loki-coordinator-k8s # --trust (use when cluster has RBAC enabled)
 
 ## OCI Images
 
-This charm, by default, deploys `ubuntu/nginx:1.18-22.04_beta` and `nginx/nginx-prometheus-exporter:1.1.0`.
+This charm, by default, deploys `ghcr.io/canonical/nginx:dev` and `nginx/nginx-prometheus-exporter:1.1.0`.
 
 ## Contributing
 

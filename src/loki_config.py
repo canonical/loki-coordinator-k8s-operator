@@ -107,7 +107,7 @@ class LokiConfig:
             "schema_config": self._schema_config(),
             "storage_config": self._storage_config(coordinator),
             "server": self._server_config(coordinator),
-            "analytics": self._analytics_config(coordinator._charm.config["reporting_enabled"]),
+            "analytics": self._analytics_config(bool(coordinator._charm.config["reporting_enabled"])),
         }
 
         return yaml.dump(loki_config)
@@ -306,4 +306,3 @@ class LokiConfig:
 
     def _analytics_config(self, reporting_enabled: bool) -> Dict[str, Any]:
             return {"reporting_enabled":reporting_enabled}
-    

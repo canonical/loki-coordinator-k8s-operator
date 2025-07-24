@@ -1,5 +1,7 @@
-import yaml
 import logging
+
+import yaml
+
 logger = logging.getLogger(__name__)
 def get_relation_data(relations, endpoint, key):
     """Retrieve the value for a given key from the local_app_data of a relation with the specified endpoint."""

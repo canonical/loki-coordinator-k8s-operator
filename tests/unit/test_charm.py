@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest as pytest
 from coordinated_workers.coordinator import Coordinator
-from scenario import State
 from helpers import get_worker_config_analytics
+from scenario import State
 
 from src.loki_config import (
     LOKI_ROLES_CONFIG,
@@ -64,7 +64,6 @@ def test_recommended(mock_coordinator, roles, expected):
 )
 def test_reporting_config(context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container, set_config):
     """Ensure the coordinator sends the correct config for analytics and reporting to the worker."""
-
     # GIVEN that the exemplars are enabled in Mimir Coordinator
     config_value: str = set_config
     config = {"reporting_enabled": config_value}

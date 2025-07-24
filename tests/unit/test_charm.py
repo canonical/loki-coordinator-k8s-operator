@@ -64,7 +64,7 @@ def test_recommended(mock_coordinator, roles, expected):
 )
 def test_reporting_config(context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container, set_config):
     """Ensure the coordinator sends the correct config for analytics and reporting to the worker."""
-    # GIVEN that the exemplars are enabled in Mimir Coordinator
+    # GIVEN the config for reporting in Loki Coordinator is set to a boolean
     config_value: str = set_config
     config = {"reporting_enabled": config_value}
 
@@ -82,6 +82,6 @@ def test_reporting_config(context, s3, all_worker, nginx_container, nginx_promet
     with context(context.on.relation_joined(all_worker), state_in) as mgr:
         state_out = mgr.run()
 
-        # THEN the worker should have the correct exemplar limit
+        # THEN the worker should have the correct boolean value for reporting in analytics
         config = get_worker_config_analytics(state_out.relations, "loki-cluster")
         assert config == set_config

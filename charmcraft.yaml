@@ -184,7 +184,7 @@ config:
       default: 0
     reporting_enabled:
       description: |
-        Toggle reporting of usage info to Grafana, such as enabled feature flags.
-        Ref: https://grafana.com/docs/agent/latest/static/configuration/flags/#report-information-usage
+        Toggle anonymous reporting of usage info to Grafana.
+        Ref: https://grafana.com/docs/loki/latest/configure/#analytics
       type: boolean
       default: true

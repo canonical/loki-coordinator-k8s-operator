@@ -5,10 +5,7 @@ version = "0.0"
 requires-python = "~=3.10"
 
 dependencies = [
-  "cosl>=1.0",
-  # TODO: use a tagged version 
-  "coordinated-workers@git+https://github.com/canonical/cos-coordinated-workers@TAP-359",
-  "pydantic>2.0",
+  "coordinated-workers",
 ]
 
 [project.optional-dependencies]
@@ -21,7 +18,7 @@ dev = [
   # Unit
   "pytest",
   "coverage[toml]",
-  "ops[testing,tracing]",
+  "ops[testing]",
   "deepdiff",
   # Interface
   "pytest-interface-tester>2.0.0",

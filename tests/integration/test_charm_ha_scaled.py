@@ -28,14 +28,14 @@ logger = logging.getLogger(__name__)
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str):
+async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str, cos_channel):
     """Build the charm-under-test and deploy it together with related charms."""
     assert ops_test.model is not None  # for pyright
     await asyncio.gather(
-        ops_test.model.deploy(loki_charm, "loki", resources=charm_resources(), trust=True),
-        ops_test.model.deploy("prometheus-k8s", "prometheus", channel="latest/stable", trust=True),
-        ops_test.model.deploy("loki-k8s", "loki-mono", channel="latest/stable", trust=True),
-        ops_test.model.deploy("grafana-k8s", "grafana", channel="latest/stable", trust=True),
+        ops_test.model.deploy(loki_charm, "loki", resources=charm_resources(), num_units=3, trust=True),
+        ops_test.model.deploy("prometheus-k8s", "prometheus", channel=cos_channel, trust=True),
+        ops_test.model.deploy("loki-k8s", "loki-mono", channel=cos_channel, trust=True),
+        ops_test.model.deploy("grafana-k8s", "grafana", channel=cos_channel, trust=True),
         ops_test.model.deploy("flog-k8s", "flog", channel="latest/stable", trust=True),
         ops_test.model.deploy("traefik-k8s", "traefik", channel="latest/stable", trust=True),
         # Deploy and configure Minio and S3
@@ -61,13 +61,13 @@ async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str):
 
 @pytest.mark.setup
 @pytest.mark.abort_on_fail
-async def test_deploy_workers(ops_test: OpsTest):
+async def test_deploy_workers(ops_test: OpsTest, cos_channel):
     """Deploy the Loki workers."""
     assert ops_test.model is not None
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-read",
-        channel="latest/edge",
+        channel=cos_channel,
         config={"role-read": True},
         num_units=3,
         trust=True,
@@ -75,7 +75,7 @@ async def test_deploy_workers(ops_test: OpsTest):
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-write",
-        channel="latest/edge",
+        channel=cos_channel,
         config={"role-write": True},
         num_units=3,
         trust=True,
@@ -83,7 +83,7 @@ async def test_deploy_workers(ops_test: OpsTest):
     await ops_test.model.deploy(
         "loki-worker-k8s",
         "worker-backend",
-        channel="latest/edge",
+        channel=cos_channel,
         config={"role-backend": True},
         num_units=3,
         trust=True,
@@ -134,7 +134,9 @@ async def test_grafana_source(ops_test: OpsTest):
     """Test the grafana-source integration, by checking that Loki appears in the Datasources."""
     assert ops_test.model is not None
     datasources = await get_grafana_datasources(ops_test)
-    assert "loki" in datasources[0]["name"]
+    loki_datasources = ["loki" in d["name"] for d in datasources]
+    assert any(loki_datasources)
+    assert len(loki_datasources) == 1
 
 
 @retry(wait=wait_fixed(10), stop=stop_after_attempt(6))

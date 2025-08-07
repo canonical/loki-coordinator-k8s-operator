@@ -16,15 +16,12 @@ import socket
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 
-import coordinated_workers.nginx
 import ops
 import yaml
 from charms.alertmanager_k8s.v1.alertmanager_dispatch import AlertmanagerConsumer
 from charms.catalogue_k8s.v1.catalogue import CatalogueItem
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
 from charms.loki_k8s.v1.loki_push_api import LokiPushApiProvider
-from charms.tempo_coordinator_k8s.v0.charm_tracing import trace_charm
-from charms.tempo_coordinator_k8s.v0.tracing import charm_tracing_config
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import NginxConfig
@@ -40,15 +37,11 @@ logger = logging.getLogger(__name__)
 
 RULES_DIR = "/etc/loki-alerts/rules"
 ALERTS_HASH_PATH = "/etc/loki-alerts/alerts.sha256"
+NGINX_PORT = NginxHelper._nginx_port
+NGINX_TLS_PORT = NginxHelper._nginx_tls_port
 
 
-@trace_charm(
-    tracing_endpoint="charm_tracing_endpoint",
-    server_cert="server_ca_cert",
-    extra_types=[
-        Coordinator,
-    ],
-)
+
 class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
     """Charm the service."""
 
@@ -62,7 +55,6 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         self._nginx_helper = NginxHelper(self._nginx_container)
         self.ingress = IngressPerAppRequirer(
             charm=self,
-            port=urlparse(self.internal_url).port,
             strip_prefix=True,
             scheme=lambda: urlparse(self.internal_url).scheme,
         )
@@ -102,9 +94,10 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             catalogue_item=self._catalogue_item,
         )
 
-        self.charm_tracing_endpoint, self.server_ca_cert = charm_tracing_config(
-            self.coordinator.charm_tracing, coordinated_workers.nginx.CA_CERT_PATH
-        )
+        # needs to be after the Coordinator definition in order to push certificates before checking
+        # if they exist
+        if port := urlparse(self.internal_url).port:
+            self.ingress.provide_ingress_requirements(port=port)
 
         self.grafana_source = GrafanaSourceProvider(
             self,
@@ -112,14 +105,22 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             source_url=self.external_url,
             extra_fields={"httpHeaderName1": "X-Scope-OrgID"},
             secure_extra_fields={"httpHeaderValue1": "anonymous"},
-            refresh_event=[self.coordinator.cluster.on.changed],
+            refresh_event=[
+                self.coordinator.cluster.on.changed,
+                self.on[self.coordinator._certificates.relationship_name].relation_changed,
+                self.ingress.on.ready,
+                self.ingress.on.revoked,
+            ],
+            is_ingress_per_app=self.ingress.is_ready(),
         )
 
         external_url = urlparse(self.external_url)
         self.loki_provider = LokiPushApiProvider(
             self,
             address=external_url.hostname or self.hostname,
-            port=external_url.port or 443 if self.coordinator.tls_available else 8080,
+            port=external_url.port or NGINX_TLS_PORT
+            if self.coordinator.tls_available
+            else NGINX_PORT,
             scheme=external_url.scheme,
             path=f"{external_url.path}/loki/api/v1/push",
         )
@@ -139,10 +140,12 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
     @property
     def internal_url(self) -> str:
         """Returns workload's FQDN. Used for ingress."""
-        scheme = "http"
-        if hasattr(self, "coordinator") and self.coordinator.nginx.are_certificates_on_disk:
-            scheme = "https"
-        return f"{scheme}://{self.hostname}:8080"
+        scheme, port = (
+            ("https", NGINX_TLS_PORT)
+            if hasattr(self, "coordinator") and self.coordinator.nginx.are_certificates_on_disk
+            else ("http", NGINX_PORT)
+        )
+        return f"{scheme}://{self.hostname}:{port}"
 
     @property
     def external_url(self) -> str:
@@ -156,7 +159,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
     @property
     def _catalogue_item(self) -> CatalogueItem:
-        """A catalogue application entry for this Mimir instance."""
+        """A catalogue application entry for this Loki instance."""
         return CatalogueItem(
             name="Loki",
             icon="text",
@@ -241,7 +244,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             self._nginx_container.remove_path(RULES_DIR, recursive=True)
             rules_file_paths: List[str] = self._push_alert_rules(loki_alerts)
             self._push(ALERTS_HASH_PATH, alerts_hash)
-            # Push the alert rules to the Mimir cluster (persisted in s3)
+            # Push the alert rules to the Loki cluster (persisted in s3)
             logger.info(
                 f"lokitool rules sync {' '.join(rules_file_paths)} --address={self.external_url}/loki --id=fake"
             )

@@ -6,17 +6,10 @@ import socket
 from unittest.mock import MagicMock, patch
 
 import pytest
-from charms.tempo_coordinator_k8s.v0.charm_tracing import charm_tracing_disabled
 from ops import ActiveStatus
 from scenario import Container, Context, Exec, Relation
 
-from charm import LokiCoordinatorK8SOperatorCharm
-
-
-@pytest.fixture(autouse=True, scope="session")
-def disable_charm_tracing():
-    with charm_tracing_disabled():
-        yield
+from charm import NGINX_PORT, NGINX_TLS_PORT, LokiCoordinatorK8SOperatorCharm
 
 
 @pytest.fixture
@@ -43,20 +36,14 @@ def context(loki_charm):
 
 @pytest.fixture(scope="function")
 def nginx_container():
+    address_arg = f"--address=http://{socket.getfqdn()}:{NGINX_PORT}"
+    address_arg_tls = f"--address=https://{socket.getfqdn()}:{NGINX_TLS_PORT}"
     return Container(
         "nginx",
         can_connect=True,
         execs={
-            Exec(
-                [
-                    "lokitool",
-                    "rules",
-                    "sync",
-                    f"--address=http://{socket.getfqdn()}:8080",
-                    "--id=fake",
-                ],
-                return_code=0,
-            )
+            Exec(["lokitool", "rules", "sync", address_arg, "--id=fake"], return_code=0),
+            Exec(["lokitool", "rules", "sync", address_arg_tls, "--id=fake"], return_code=0),
         },
     )
 

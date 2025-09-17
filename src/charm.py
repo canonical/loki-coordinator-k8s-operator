@@ -91,6 +91,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             container_name="nginx",  # container to which resource limits will be applied
             workload_tracing_protocols=["jaeger_thrift_http"],
             catalogue_item=self._catalogue_item,
+            proxy_worker_metrics=True,
         )
 
         # needs to be after the Coordinator definition in order to push certificates before checking

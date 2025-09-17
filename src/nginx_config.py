@@ -56,7 +56,7 @@ class NginxHelper:
         """Generate the list of Nginx upstream metadata configurations."""
         upstreams = [NginxUpstream(role, self._loki_port, role) for role in ROLES]
         # add a generic `worker` upstream that routes to all workers
-        upstreams.append(NginxUpstream("worker", self._loki_port, "worker", ignore_worker_role=True))
+        upstreams.append(NginxUpstream("worker", self._loki_port, "worker", ignore_address_lookup=True))
         return upstreams
 
     def server_ports_to_locations(self) -> Dict[int, List[NginxLocationConfig]]:

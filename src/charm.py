@@ -74,7 +74,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
                 "s3": "s3",
                 "send-datasource": "send-datasource",
                 "receive-datasource": None,
-                "catalogue": None,
+                "catalogue": "catalogue",
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,

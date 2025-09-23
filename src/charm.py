@@ -92,7 +92,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             workload_tracing_protocols=["jaeger_thrift_http"],
             catalogue_item=self._catalogue_item,
             proxy_worker_telemetry=True,
-            proxy_worker_telemetry_port=self.get_nginx_port,
+            proxy_worker_telemetry_port=self._get_nginx_port,
         )
 
         # needs to be after the Coordinator definition in order to push certificates before checking
@@ -177,7 +177,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
     # === UTILITY METHODS === #
     ###########################
     @staticmethod
-    def get_nginx_port(tls_available: bool) -> int:
+    def _get_nginx_port(tls_available: bool) -> int:
+        """Return the port that the nginx will listen on."""
         if tls_available:
             return NGINX_TLS_PORT
         return NGINX_PORT

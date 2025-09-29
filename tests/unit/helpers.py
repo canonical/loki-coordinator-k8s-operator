@@ -9,7 +9,7 @@ def get_relation_data(relations, endpoint, key):
     assert len(relevant) < 2, "This helper currently assumes only one relation."
     return relevant[0] if relevant else None
 
-def get_worker_config_analytics(relations, endpoint, block_key):
+def get_worker_config(relations, endpoint, block_key):
     relevant = [r.local_app_data for r in relations if r.endpoint == endpoint]
 
     assert relevant, "No matching relation found"

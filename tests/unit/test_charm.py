@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest as pytest
 from coordinated_workers.coordinator import Coordinator
-from helpers import get_worker_config_analytics
+from helpers import get_worker_config
 from scenario import State
 
 from src.loki_config import (
@@ -83,7 +83,7 @@ def test_reporting_config(context, s3, all_worker, nginx_container, nginx_promet
         state_out = mgr.run()
 
         # THEN the worker should have the correct boolean value for reporting in analytics
-        config = get_worker_config_analytics(state_out.relations, "loki-cluster", "analytics")
+        config = get_worker_config(state_out.relations, "loki-cluster", "analytics")
         assert config["reporting_enabled"] == set_config
 
 @pytest.mark.parametrize(
@@ -114,5 +114,5 @@ def test_retention(context, s3, all_worker, nginx_container, nginx_prometheus_ex
         state_out = mgr.run()
 
         # THEN the worker should have the correct boolean value for reporting in analytics
-        config = get_worker_config_analytics(state_out.relations, "loki-cluster", "compactor")
+        config = get_worker_config(state_out.relations, "loki-cluster", "compactor")
         assert config == expected_config

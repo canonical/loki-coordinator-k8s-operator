@@ -1,0 +1,15 @@
+groups:
+- name: tcUCWB1lsWXHUhySfm5m_a48b3078_worker_high_log_volume_alerts
+  rules:
+  - alert: HighLogVolume
+    annotations:
+      summary: Log rate is too high!
+    expr: 'count_over_time(({job=~".+"})[30s]) > 100
+
+      '
+    labels:
+      juju_application: worker
+      juju_charm: loki
+      juju_model: tcUCWB1lsWXHUhySfm5m
+      juju_model_uuid: a48b3078-93a6-42a9-85de-4c9c48800cc0
+      severity: high

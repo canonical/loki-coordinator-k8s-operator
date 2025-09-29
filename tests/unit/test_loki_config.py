@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, PropertyMock
 
 import pytest
+from coordinated_workers.coordinator import Coordinator
 from deepdiff import DeepDiff
 
 from src.loki_config import LokiConfig
@@ -107,9 +108,14 @@ def test_build_common_config(loki_config, coordinator, addresses_by_role, replic
         (10, True),
     ],
 )
-def test_build_compactor_config(loki_config: LokiConfig, retention: int, expected: bool):
-    compactor_config = loki_config._compactor_config(retention)
+def test_build_compactor_config(loki_config: LokiConfig, retention: int, expected: bool, coordinator: Coordinator):
+    compactor_config = loki_config._compactor_config(retention, coordinator)
+
+    # If retention is enabled, we should see the delete_request_store key in the returned dict and its value should be S3 from the Coordinator
+    # Else, there should be no delete_request_store in the returned config
     expected_config = {"retention_enabled": expected, "working_directory": "/loki/compactor"}
+    if retention > 0:
+        expected_config["delete_request_store"] = "aws"
     assert compactor_config == expected_config
 
 

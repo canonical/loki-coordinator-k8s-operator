@@ -88,7 +88,7 @@ class LokiConfig:
             "chunk_store_config": self._chunk_store_config(),
             "common": self._common_config(coordinator),
             "compactor": self._compactor_config(
-                retention_period=int(coordinator._charm.config["retention-period"])
+                retention_period=int(coordinator._charm.config["retention-period"]), coordinator=coordinator
             ),
             "frontend": self._frontend_config(),
             "ingester": self._ingester_config(),
@@ -134,14 +134,24 @@ class LokiConfig:
             "storage": {"s3": self._s3_storage_config(coordinator)},
         }
 
-    def _compactor_config(self, retention_period: int) -> Dict[str, Any]:
+    def _compactor_config(self, retention_period: int, coordinator: Coordinator) -> Dict[str, Any]:
         # Ref: https://grafana.com/docs/loki/latest/configure/#compactor
         retention_enabled = retention_period != 0
-        return {
+        config = {
             # Activate custom retention. Default is False.
             "retention_enabled": retention_enabled,
             "working_directory": COMPACTOR_DIR,
         }
+
+        # When retention is enabled, it is required to configure a store for deletion requests (ref: https://grafana.com/docs/loki/latest/operations/storage/retention/)
+        # If missing, this worker will have an error: "ERROR: invalid compactor config: compactor.delete-request-store should be configured when retention is enabled`"
+        # When retention is enabled (i.e. we want to delete logs periodically), delete requests are created and the compactor executes these.
+        # It's necessary to persist these (e.g. in S3) across restarts for example.
+        # This store is the same S3 storage that we define in the storages config
+        if retention_enabled and coordinator.s3_ready:
+            config["delete_request_store"] = "aws"
+
+        return config
 
     def _frontend_config(self) -> Dict[str, Any]:
         # Ref: https://grafana.com/docs/loki/latest/configure/#frontend

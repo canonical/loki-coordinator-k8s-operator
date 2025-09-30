@@ -88,7 +88,7 @@ class LokiConfig:
             "chunk_store_config": self._chunk_store_config(),
             "common": self._common_config(coordinator),
             "compactor": self._compactor_config(
-                retention_period=int(coordinator._charm.config["retention-period"]), coordinator=coordinator
+                retention_period=int(coordinator._charm.config["retention-period"])
             ),
             "frontend": self._frontend_config(),
             "ingester": self._ingester_config(),
@@ -134,7 +134,7 @@ class LokiConfig:
             "storage": {"s3": self._s3_storage_config(coordinator)},
         }
 
-    def _compactor_config(self, retention_period: int, coordinator: Coordinator) -> Dict[str, Any]:
+    def _compactor_config(self, retention_period: int) -> Dict[str, Any]:
         # Ref: https://grafana.com/docs/loki/latest/configure/#compactor
         retention_enabled = retention_period != 0
         config = {
@@ -148,8 +148,8 @@ class LokiConfig:
         # When retention is enabled (i.e. we want to delete logs periodically), delete requests are created and the compactor executes these.
         # It's necessary to persist these (e.g. in S3) across restarts for example.
         # This store is the same S3 storage that we define in the storages config
-        if retention_enabled and coordinator.s3_ready:
-            config["delete_request_store"] = "aws"
+        if retention_enabled:
+            config["delete_request_store"] = "s3"
 
         return config
 

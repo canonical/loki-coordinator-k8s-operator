@@ -90,7 +90,7 @@ def test_reporting_config(context, s3, all_worker, nginx_container, nginx_promet
     "set_config, expected_config",
     [
         (0, {'retention_enabled': False, 'working_directory': '/loki/compactor'}),
-        (10, {'delete_request_store': 'aws', 'retention_enabled': True, 'working_directory': '/loki/compactor'}),
+        (10, {'delete_request_store': 's3', 'retention_enabled': True, 'working_directory': '/loki/compactor'}),
     ]
 )
 def test_retention(context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container, set_config, expected_config):

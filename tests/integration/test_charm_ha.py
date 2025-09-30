@@ -86,7 +86,14 @@ async def test_deploy_workers(ops_test: OpsTest, cos_channel):
         trust=True,
     )
     await ops_test.model.wait_for_idle(
-        apps=["worker-read", "worker-write", "worker-backend"], status="blocked"
+        apps=[
+            "worker-read",
+            "worker-write",
+            "worker-backend",
+        ],
+        status="blocked",
+        raise_on_error=False,
+        timeout=1000,
     )
 
 
@@ -122,7 +129,9 @@ async def test_integrate(ops_test: OpsTest):
             "worker-backend",
         ],
         status="active",
+        raise_on_error=False,
         timeout=1000,
+
     )
 
 

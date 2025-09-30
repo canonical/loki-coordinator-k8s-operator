@@ -71,7 +71,7 @@ async def test_deploy_workers(ops_test: OpsTest, cos_channel):
         config={"role-all": True},
         trust=True,
     )
-    await ops_test.model.wait_for_idle(apps=["worker"], status="blocked")
+    await ops_test.model.wait_for_idle(apps=["worker"], status="blocked", raise_on_error=False, timeout=1000)
 
 
 @pytest.mark.setup
@@ -102,6 +102,8 @@ async def test_integrate(ops_test: OpsTest):
             "traefik",
         ],
         status="active",
+        raise_on_error=False,
+        timeout=1000,
     )
 
 

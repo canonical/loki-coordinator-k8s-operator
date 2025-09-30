@@ -25,6 +25,7 @@ from charms.loki_k8s.v1.loki_push_api import LokiPushApiProvider
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import NginxConfig
+from coordinated_workers.worker_telemetry import WorkerTelemetryProxyConfig
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from ops.model import ModelError
 from ops.pebble import Error as PebbleError
@@ -91,8 +92,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             container_name="nginx",  # container to which resource limits will be applied
             workload_tracing_protocols=["jaeger_thrift_http"],
             catalogue_item=self._catalogue_item,
-            proxy_worker_telemetry=True,
-            proxy_worker_telemetry_port=self._get_nginx_port,
+            worker_telemetry_proxy_config=self._worker_telemetry_proxy_config,
         )
 
         # needs to be after the Coordinator definition in order to push certificates before checking
@@ -173,16 +173,17 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             ),
         )
 
+    @property
+    def _worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
+        """Get the http and https ports for proxying worker telemetry."""
+        return WorkerTelemetryProxyConfig(
+            http=NGINX_PORT,
+            https=NGINX_TLS_PORT,
+        )
+
     ###########################
     # === UTILITY METHODS === #
     ###########################
-    @staticmethod
-    def _get_nginx_port(tls_available: bool) -> int:
-        """Return the port that the nginx will listen on."""
-        if tls_available:
-            return NGINX_TLS_PORT
-        return NGINX_PORT
-
     def _pull(self, path: str) -> Optional[str]:
         """Pull file from container (without raising pebble errors).
 

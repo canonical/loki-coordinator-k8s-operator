@@ -299,7 +299,12 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         # regardless of the event we are processing.
         if self._nginx_container.can_connect():
             self._set_alerts()
-
+        self.unit.set_ports(
+            NGINX_TLS_PORT
+            if self.coordinator.tls_available
+            else
+            NGINX_PORT
+        )
         self._update_datasource_exchange()
 
 

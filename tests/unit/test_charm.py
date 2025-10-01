@@ -87,16 +87,16 @@ def test_reporting_config(context, s3, all_worker, nginx_container, nginx_promet
         assert config["reporting_enabled"] == set_config
 
 @pytest.mark.parametrize(
-    "set_config, expected_config",
+    "retention_period, expected_config",
     [
         (0, {'retention_enabled': False, 'working_directory': '/loki/compactor'}),
-        (10, {'delete_request_store': 's3', 'retention_enabled': True, 'working_directory': '/loki/compactor'}),
+        (10, {'retention_enabled': True, 'working_directory': '/loki/compactor', 'delete_request_store': 's3'}),
     ]
 )
-def test_retention(context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container, set_config, expected_config):
+def test_retention(context, s3, all_worker, nginx_container, nginx_prometheus_exporter_container, retention_period, expected_config):
     """Ensure the coordinator sends the correct config for analytics and reporting to the worker."""
     # GIVEN the config for reporting in Loki Coordinator is set to a boolean
-    config_value: str = set_config
+    config_value: str = retention_period
     config = {"retention-period": config_value}
 
     state_in = State(
@@ -113,6 +113,6 @@ def test_retention(context, s3, all_worker, nginx_container, nginx_prometheus_ex
     with context(context.on.relation_joined(all_worker), state_in) as mgr:
         state_out = mgr.run()
 
-        # THEN the worker should have the correct boolean value for reporting in analytics
+        # THEN the worker should correctly enable/disable retention
         config = get_worker_config(state_out.relations, "loki-cluster", "compactor")
         assert config == expected_config

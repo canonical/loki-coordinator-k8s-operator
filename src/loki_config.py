@@ -140,9 +140,8 @@ class LokiConfig:
         # Ref: https://grafana.com/docs/loki/latest/configure/#compactor
 
         When retention is enabled, it is required to configure a store for deletion requests (ref: https://grafana.com/docs/loki/latest/operations/storage/retention/)
-        If missing, this worker will have an error: "ERROR: invalid compactor config: compactor.delete-request-store should be configured when retention is enabled`"
-        When retention is enabled (i.e. we want to delete logs periodically), delete requests are created and the compactor executes these.
-        It's necessary to persist these (e.g. in S3) across restarts for example.
+        Delete requests are created and the compactor executes them.
+        It's necessary to persist them (e.g. in S3) across restarts for example.
         This store is the same S3 storage that we define in the storages config
         """
         retention_enabled = retention_period != 0

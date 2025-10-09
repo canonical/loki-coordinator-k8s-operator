@@ -26,6 +26,8 @@ from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import NginxConfig
 from cosl.interfaces.datasource_exchange import DatasourceDict
+# from cosl.otlp import OtlpProvider
+from otlp import OtlpProvider
 from ops.model import ModelError
 from ops.pebble import Error as PebbleError
 
@@ -112,6 +114,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             ],
             is_ingress_per_app=self.ingress.is_ready(),
         )
+
+        self._otlp = OtlpProvider(self, {"http": NginxHelper._loki_port}, path="otlp", supported_telemetries=["logs"])
 
         external_url = urlparse(self.external_url)
         self.loki_provider = LokiPushApiProvider(

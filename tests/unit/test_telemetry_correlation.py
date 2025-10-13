@@ -69,7 +69,6 @@ def test_logs_to_traces_config_tempo_datasource(
     nginx_prometheus_exporter_container,
 ):
     # GIVEN a datasource exchange relations with a tempo type
-    # AND a workload-tracing relation with that same tempo
     relations = [
         s3,
         all_worker,
@@ -85,10 +84,6 @@ def test_logs_to_traces_config_tempo_datasource(
             "send-datasource",
             remote_app_name="tempo",
             remote_app_data={"datasources": json.dumps([{"type": "tempo", "uid": "tempo_1", "grafana_uid": "graf_1"}])},
-        ),
-        Relation(
-            "workload-tracing",
-            remote_app_name="tempo",
         ),
     ]
     state_in = State(

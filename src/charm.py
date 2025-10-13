@@ -98,7 +98,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         # if they exist
         if port := urlparse(self.internal_url).port:
             self.ingress.provide_ingress_requirements(port=port)
-        self._telemetry_correlation = TelemetryCorrelation(self, grafana_ds_endpoint="grafana-source", grafana_dsx_endpoint="send-datasource")
+        self._telemetry_correlation = TelemetryCorrelation(
+            app_name=self.app.name,
+            grafana_source_relations=self.model.relations["grafana-source"],
+            datasource_exchange_relations=self.model.relations["send-datasource"]
+        )
         self.grafana_source = GrafanaSourceProvider(
             self,
             source_type="loki",
@@ -312,6 +316,7 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
 
 
     def _build_logs_to_traces_config(self) -> Dict[str, Any]:
+        # TODO: move this into the grafana_source library
         # reference: https://grafana.com/docs/grafana/latest/datasources/loki/#configure-derived-fields
         if datasource := self._telemetry_correlation.find_correlated_datasource(
             datasource_type="tempo",

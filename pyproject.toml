@@ -5,8 +5,7 @@ version = "0.0"
 requires-python = "~=3.10"
 
 dependencies = [
-  # FIXME: use pypi package
-  "coordinated-workers@git+https://github.com/canonical/cos-coordinated-workers@telemetry-correlation-module",
+  "coordinated-workers",
 ]
 
 [project.optional-dependencies]

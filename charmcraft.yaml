@@ -62,6 +62,10 @@ resources:
     description: OCI image for nginx-prometheus-exporter
     upstream-source: nginx/nginx-prometheus-exporter:1.1.0
 
+peers:
+  loki-peers:
+    interface: loki_peers
+
 provides:
   logging:
     interface: loki_push_api

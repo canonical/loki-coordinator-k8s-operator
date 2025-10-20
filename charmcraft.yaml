@@ -171,8 +171,6 @@ requires:
       The beacon sends the pod and service labels required by this charm to join the mesh.
       This relation is a pre-requisite for using the provide-cmr-mesh relation.
   require-cmr-mesh:
-    # TODO: remove this relation when this is fixed:
-    #   https://github.com/canonical/istio-beacon-k8s-operator/issues/91
     interface: cross_model_mesh
     description: |
       Allow a cross-model application access to loki via the service mesh.

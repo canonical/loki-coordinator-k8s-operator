@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import requests
 import yaml
@@ -75,21 +75,11 @@ async def get_unit_address(ops_test: OpsTest, app_name: str, unit_no: int) -> st
     return unit["address"]
 
 
-async def get_grafana_datasources(
+async def get_grafana_datasources_from_client_localhost(
     ops_test: OpsTest,
     grafana_app: str = "grafana",
-    source_pod: Optional[str] = None,
 ) -> List[Any]:
-    """Get the Datasources from Grafana using the HTTP API.
-
-    Args:
-        ops_test: The OpsTest instance
-        grafana_app: The Grafana application name
-        source_pod: Optional pod to run the query from (format: "app-name/unit-num").
-                   If specified, will use juju exec to run curl from within the pod.
-
-    HTTP API Response format: [{"id": 1, "name": <some-name>, ...}, ...]
-    """
+    """Get Grafana datasources from the test host machine (outside the cluster)."""
     assert ops_test.model is not None
     grafana_leader: Unit = ops_test.model.applications[grafana_app].units[0]  # type: ignore
     action = await grafana_leader.run_action("get-admin-password")
@@ -98,102 +88,115 @@ async def get_grafana_datasources(
     grafana_url = await get_unit_address(ops_test, grafana_app, 0)
     url = f"http://admin:{admin_password}@{grafana_url}:3000/api/datasources"
 
-    if source_pod:
-        # Run query from within a pod using juju exec (needed for service mesh)
-        action = await ops_test.model.applications[source_pod.split("/")[0]].units[
-            int(source_pod.split("/")[1])
-        ].run(f"curl -s {url}")
-        result = await action.wait()
-
-        response_text = result.results.get("stdout", result.results.get("Stdout", ""))
-        response_json = json.loads(response_text)
-    else:
-        # Run query from host
-        response = requests.get(url)
-        assert response.status_code == 200
-        response_json = response.json()
-
-    return response_json
+    # Run query from host
+    response = requests.get(url)
+    assert response.status_code == 200
+    return response.json()
 
 
-async def get_prometheus_targets(
+async def get_grafana_datasources_from_client_pod(
+    ops_test: OpsTest,
+    source_pod: str,
+    grafana_app: str = "grafana",
+) -> List[Any]:
+    """Get Grafana datasources from inside a pod (within the cluster)."""
+    assert ops_test.model is not None
+    grafana_leader: Unit = ops_test.model.applications[grafana_app].units[0]  # type: ignore
+    action = await grafana_leader.run_action("get-admin-password")
+    action_result = await action.wait()
+    admin_password = action_result.results["admin-password"]
+    grafana_url = await get_unit_address(ops_test, grafana_app, 0)
+    url = f"http://admin:{admin_password}@{grafana_url}:3000/api/datasources"
+
+    # Run query from within a pod using juju exec (needed for service mesh)
+    action = await ops_test.model.applications[source_pod.split("/")[0]].units[
+        int(source_pod.split("/")[1])
+    ].run(f"curl -s {url}")
+    result = await action.wait()
+
+    response_text = result.results.get("stdout", result.results.get("Stdout", ""))
+    return json.loads(response_text)
+
+
+async def get_prometheus_targets_from_client_localhost(
     ops_test: OpsTest,
     prometheus_app: str = "prometheus",
-    source_pod: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Get the Scrape Targets from Prometheus using the HTTP API.
-
-    Args:
-        ops_test: The OpsTest instance
-        prometheus_app: The Prometheus application name
-        source_pod: Optional pod to run the query from (format: "app-name/unit-num").
-                   If specified, will use juju exec to run curl from within the pod.
-
-    HTTP API Response format:
-        {"status": "success", "data": {"activeTargets": [{"discoveredLabels": {..., "juju_charm": <charm>, ...}}]}}
-    """
+    """Get Prometheus scrape targets from the test host machine (outside the cluster)."""
     assert ops_test.model is not None
     prometheus_url = await get_unit_address(ops_test, prometheus_app, 0)
     url = f"http://{prometheus_url}:9090/api/v1/targets"
 
-    if source_pod:
-        # Run query from within a pod using juju exec (needed for service mesh)
-        action = await ops_test.model.applications[source_pod.split("/")[0]].units[
-            int(source_pod.split("/")[1])
-        ].run(f"curl -s {url}")
-        result = await action.wait()
-
-        response_text = result.results.get("stdout", result.results.get("Stdout", ""))
-        response_json = json.loads(response_text)
-    else:
-        # Run query from host
-        response = requests.get(url)
-        assert response.status_code == 200
-        response_json = response.json()
+    # Run query from host
+    response = requests.get(url)
+    assert response.status_code == 200
+    response_json = response.json()
 
     assert response_json["status"] == "success"
     return response_json["data"]
 
 
-async def query_loki_series(
+async def get_prometheus_targets_from_client_pod(
+    ops_test: OpsTest,
+    source_pod: str,
+    prometheus_app: str = "prometheus",
+) -> Dict[str, Any]:
+    """Get Prometheus scrape targets from inside a pod (within the cluster)."""
+    assert ops_test.model is not None
+    prometheus_url = await get_unit_address(ops_test, prometheus_app, 0)
+    url = f"http://{prometheus_url}:9090/api/v1/targets"
+
+    # Run query from within a pod using juju exec (needed for service mesh)
+    action = await ops_test.model.applications[source_pod.split("/")[0]].units[
+        int(source_pod.split("/")[1])
+    ].run(f"curl -s {url}")
+    result = await action.wait()
+
+    response_text = result.results.get("stdout", result.results.get("Stdout", ""))
+    response_json = json.loads(response_text)
+
+    assert response_json["status"] == "success"
+    return response_json["data"]
+
+
+async def query_loki_series_from_client_localhost(
     ops_test: OpsTest,
     coordinator_app: str = "loki",
-    source_pod: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Query Loki series API.
-
-    Args:
-        ops_test: The OpsTest instance
-        coordinator_app: The Loki coordinator application name
-        source_pod: Optional pod to run the query from (format: "app-name/unit-num").
-                   If specified, will use juju exec to run curl from within the pod.
-                   This is necessary for service mesh testing where external requests may not work.
-
-    Returns:
-        The JSON response from Loki's series API
-    """
+    """Query Loki series API from the test host machine (outside the cluster)."""
     assert ops_test.model is not None
 
-    if source_pod:
-        # Run query from within a pod using juju exec (needed for service mesh)
-        loki_url = f"{coordinator_app}.{ops_test.model.name}.svc.cluster.local"
-        url = f"http://{loki_url}:8080/loki/api/v1/series"
+    # Run query from host
+    loki_url = await get_unit_address(ops_test, coordinator_app, 0)
+    response = requests.get(f"http://{loki_url}:8080/loki/api/v1/series")
+    assert response.status_code == 200
+    response_json = response.json()
 
-        action = await ops_test.model.applications[source_pod.split("/")[0]].units[
-            int(source_pod.split("/")[1])
-        ].run(f"curl -s {url}")
-        result = await action.wait()
+    assert response_json["status"] == "success"
+    return response_json
 
-        response_text = result.results.get("stdout", result.results.get("Stdout", ""))
-        response_json = json.loads(response_text)
-    else:
-        # Run query from host
-        loki_url = await get_unit_address(ops_test, coordinator_app, 0)
-        response = requests.get(f"http://{loki_url}:8080/loki/api/v1/series")
-        assert response.status_code == 200
-        response_json = response.json()
 
-    assert response_json["status"] == "success"  # the query was successful
+async def query_loki_series_from_client_pod(
+    ops_test: OpsTest,
+    source_pod: str,
+    coordinator_app: str = "loki",
+) -> Dict[str, Any]:
+    """Query Loki series API from inside a pod (within the cluster)."""
+    assert ops_test.model is not None
+
+    # Run query from within a pod using juju exec (needed for service mesh)
+    loki_url = f"{coordinator_app}.{ops_test.model.name}.svc.cluster.local"
+    url = f"http://{loki_url}:8080/loki/api/v1/series"
+
+    action = await ops_test.model.applications[source_pod.split("/")[0]].units[
+        int(source_pod.split("/")[1])
+    ].run(f"curl -s {url}")
+    result = await action.wait()
+
+    response_text = result.results.get("stdout", result.results.get("Stdout", ""))
+    response_json = json.loads(response_text)
+
+    assert response_json["status"] == "success"
     return response_json
 
 

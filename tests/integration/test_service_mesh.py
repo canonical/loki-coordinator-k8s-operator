@@ -17,10 +17,10 @@ from helpers import (
     charm_resources,
     configure_minio,
     configure_s3_integrator,
-    get_grafana_datasources,
+    get_grafana_datasources_from_client_pod,
     get_istio_ingress_ip,
-    get_prometheus_targets,
-    query_loki_series,
+    get_prometheus_targets_from_client_pod,
+    query_loki_series_from_client_pod,
     service_mesh,
 )
 from pytest_operator.plugin import OpsTest
@@ -59,7 +59,20 @@ async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str, cos_channel)
     await configure_s3_integrator(ops_test)
 
     await ops_test.model.wait_for_idle(
-        apps=["prometheus", "loki-mono", "grafana", "minio", "s3", "flog", "istio", "istio-beacon", "istio-ingress"], status="active"
+        apps=[
+            "prometheus",
+            "loki-mono",
+            "grafana",
+            "minio",
+            "s3",
+            "flog",
+            "istio",
+            "istio-beacon",
+            "istio-ingress",
+        ],
+        status="active",
+        timeout=1000,
+        raise_on_error=False,  # network changes might cause mometary error states
     )
     await ops_test.model.wait_for_idle(apps=["loki"], status="blocked")
 
@@ -156,7 +169,7 @@ async def test_grafana_source(ops_test: OpsTest):
     assert ops_test.model is not None
     # Query from inside the grafana pod when service mesh is enabled
     source_pod = "grafana/0"
-    datasources = await get_grafana_datasources(ops_test, source_pod=source_pod)
+    datasources = await get_grafana_datasources_from_client_pod(ops_test, source_pod)
     assert "loki" in datasources[0]["name"]
 
 
@@ -166,7 +179,7 @@ async def test_metrics_endpoint(ops_test: OpsTest):
     assert ops_test.model is not None
     # Query from inside the prometheus pod when service mesh is enabled
     source_pod = "prometheus/0"
-    targets = await get_prometheus_targets(ops_test, source_pod=source_pod)
+    targets = await get_prometheus_targets_from_client_pod(ops_test, source_pod)
     loki_targets = [
         target
         for target in targets["activeTargets"]
@@ -179,8 +192,8 @@ async def test_metrics_endpoint(ops_test: OpsTest):
 async def test_logs_in_loki(ops_test: OpsTest):
     """Check that the flog logs appear in Loki when mesh is enabled."""
     assert ops_test.model is not None
-    # Query from worker pod when service mesh is enabled, from host otherwise
+    # Query from worker pod when service mesh is enabled
     source_pod = "worker/0"
-    result = await query_loki_series(ops_test, source_pod=source_pod)
+    result = await query_loki_series_from_client_pod(ops_test, source_pod)
     assert result
     assert result["data"][0]["juju_charm"] == "flog-k8s"

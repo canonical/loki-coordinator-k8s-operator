@@ -6,6 +6,8 @@
 
 import asyncio
 import logging
+import os
+from pathlib import Path
 
 import pytest
 import requests
@@ -15,10 +17,11 @@ from helpers import (
     charm_resources,
     configure_minio,
     configure_s3_integrator,
-    get_grafana_datasources_from_client_localhost,
-    get_prometheus_targets_from_client_localhost,
-    get_traefik_proxied_endpoints,
-    query_loki_series_from_client_localhost,
+    get_grafana_datasources_from_client_pod,
+    get_istio_ingress_ip,
+    get_prometheus_targets_from_client_pod,
+    query_loki_series_from_client_pod,
+    service_mesh,
 )
 from pytest_operator.plugin import OpsTest
 from tenacity import retry, stop_after_attempt, wait_fixed
@@ -37,7 +40,9 @@ async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str, cos_channel)
         ops_test.model.deploy("loki-k8s", "loki-mono", channel=cos_channel, trust=True),
         ops_test.model.deploy("grafana-k8s", "grafana", channel=cos_channel, trust=True),
         ops_test.model.deploy("flog-k8s", "flog", channel="latest/stable", trust=True),
-        ops_test.model.deploy("traefik-k8s", "traefik", channel="latest/stable", trust=True),
+        ops_test.model.deploy("istio-k8s", "istio", channel=cos_channel, trust=True),
+        ops_test.model.deploy("istio-beacon-k8s", "istio-beacon", channel=cos_channel, trust=True),
+        ops_test.model.deploy("istio-ingress-k8s", "istio-ingress", channel=cos_channel, trust=True),
         # Deploy and configure Minio and S3
         # Secret must be at least 8 characters: https://github.com/canonical/minio-operator/issues/137
         ops_test.model.deploy(
@@ -54,7 +59,20 @@ async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str, cos_channel)
     await configure_s3_integrator(ops_test)
 
     await ops_test.model.wait_for_idle(
-        apps=["prometheus", "loki-mono", "grafana", "minio", "s3", "flog"], status="active"
+        apps=[
+            "prometheus",
+            "loki-mono",
+            "grafana",
+            "minio",
+            "s3",
+            "flog",
+            "istio",
+            "istio-beacon",
+            "istio-ingress",
+        ],
+        status="active",
+        timeout=1000,
+        raise_on_error=False,  # network changes might cause mometary error states
     )
     await ops_test.model.wait_for_idle(apps=["loki"], status="blocked")
 
@@ -64,14 +82,25 @@ async def test_build_and_deploy(ops_test: OpsTest, loki_charm: str, cos_channel)
 async def test_deploy_workers(ops_test: OpsTest, cos_channel):
     """Deploy the Loki workers."""
     assert ops_test.model is not None
-    await ops_test.model.deploy(
-        "loki-worker-k8s",
-        "worker",
-        channel=cos_channel,
-        config={"role-all": True},
-        trust=True,
-    )
-    await ops_test.model.wait_for_idle(apps=["worker"], status="blocked")
+    # Use local worker charm if env variable is set, otherwise use charmhub
+    if worker_charm := os.environ.get("WORKER_CHARM_PATH"):
+        worker_resources = {"loki-image": "docker.io/ubuntu/loki:3-22.04"}
+        await ops_test.model.deploy(
+            Path(worker_charm),
+            "worker",
+            resources=worker_resources,
+            config={"role-all": True},
+            trust=True,
+        )
+    else:
+        await ops_test.model.deploy(
+            "loki-worker-k8s",
+            "worker",
+            channel=cos_channel,
+            config={"role-all": True},
+            trust=True,
+        )
+    await ops_test.model.wait_for_idle(apps=["worker"], status="blocked", raise_on_error=False)
 
 
 @pytest.mark.setup
@@ -85,7 +114,8 @@ async def test_integrate(ops_test: OpsTest):
         ops_test.model.integrate("loki:grafana-dashboards-provider", "grafana"),
         ops_test.model.integrate("loki:grafana-source", "grafana"),
         ops_test.model.integrate("loki:logging-consumer", "loki-mono"),
-        ops_test.model.integrate("loki:ingress", "traefik"),
+        # ops_test.model.integrate("loki:ingress", "traefik"),
+        ops_test.model.integrate("loki:ingress", "istio-ingress:ingress"),
         ops_test.model.integrate("flog:log-proxy", "loki"),
     )
 
@@ -99,25 +129,57 @@ async def test_integrate(ops_test: OpsTest):
             "minio",
             "s3",
             "worker",
-            "traefik",
+            # "traefik",
+            "istio-ingress"
         ],
         status="active",
+        timeout=1000,
+        idle_period=30,
+        raise_on_error=False,
     )
+
+
+@pytest.mark.setup
+@pytest.mark.abort_on_fail
+async def test_enable_service_mesh(ops_test: OpsTest):
+    """Enable service mesh."""
+    # This is not done in the previous step for two reasons
+    # 1. Not all the apps are mesh enabled yet (for eg. minio) so we need to let the apps establish comms before we enable service mesh.
+    # 2. the `service_mesh` helper also provides a way to parametrize and run existing tests with service mesh enabled.
+    await service_mesh(
+        enable=True,
+        ops_test=ops_test,
+        beacon_app_name="istio-beacon",
+        apps_to_be_related_with_beacon=["loki"],
+    )
+
+
+async def test_ingress(ops_test: OpsTest):
+    """Check the ingress integration, by checking if Loki is reachable through the ingress endpoint."""
+    assert ops_test.model is not None
+    ingress_address = get_istio_ingress_ip(ops_test, "istio-ingress")
+    proxied_endpoint = f"http://{ingress_address}/{ops_test.model.name}-loki"
+    response = requests.get(f"{proxied_endpoint}/status")
+    assert response.status_code == 200
 
 
 @retry(wait=wait_fixed(10), stop=stop_after_attempt(6))
 async def test_grafana_source(ops_test: OpsTest):
-    """Test the grafana-source integration, by checking that Loki appears in the Datasources."""
+    """Test the grafana-source integration, by checking that Loki appears in the Datasources when mesh is enabled."""
     assert ops_test.model is not None
-    datasources = await get_grafana_datasources_from_client_localhost(ops_test)
+    # Query from inside the grafana pod when service mesh is enabled
+    source_pod = "grafana/0"
+    datasources = await get_grafana_datasources_from_client_pod(ops_test, source_pod)
     assert "loki" in datasources[0]["name"]
 
 
 @retry(wait=wait_fixed(10), stop=stop_after_attempt(6))
 async def test_metrics_endpoint(ops_test: OpsTest):
-    """Check that Loki appears in the Prometheus Scrape Targets."""
+    """Check that Loki appears in the Prometheus Scrape Targets when mesh is enabled."""
     assert ops_test.model is not None
-    targets = await get_prometheus_targets_from_client_localhost(ops_test)
+    # Query from inside the prometheus pod when service mesh is enabled
+    source_pod = "prometheus/0"
+    targets = await get_prometheus_targets_from_client_pod(ops_test, source_pod)
     loki_targets = [
         target
         for target in targets["activeTargets"]
@@ -128,17 +190,10 @@ async def test_metrics_endpoint(ops_test: OpsTest):
 
 @retry(wait=wait_fixed(10), stop=stop_after_attempt(6))
 async def test_logs_in_loki(ops_test: OpsTest):
-    """Check that the flog logs appear in Loki."""
-    result = await query_loki_series_from_client_localhost(ops_test)
+    """Check that the flog logs appear in Loki when mesh is enabled."""
+    assert ops_test.model is not None
+    # Query from worker pod when service mesh is enabled
+    source_pod = "worker/0"
+    result = await query_loki_series_from_client_pod(ops_test, source_pod)
     assert result
     assert result["data"][0]["juju_charm"] == "flog-k8s"
-
-
-async def test_traefik(ops_test: OpsTest):
-    """Check the ingress integration, by checking if Loki is reachable through Traefik."""
-    assert ops_test.model is not None
-    proxied_endpoints = await get_traefik_proxied_endpoints(ops_test)
-    assert "loki" in proxied_endpoints
-
-    response = requests.get(f"{proxied_endpoints['loki']['url']}/status")
-    assert response.status_code == 200

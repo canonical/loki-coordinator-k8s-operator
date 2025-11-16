@@ -103,6 +103,10 @@ provides:
     optional: true
     description: |
       Integration to share with other COS components this charm's datasources, and receive theirs.
+  receive-otlp:
+    interface: otlp
+    optional: true
+    description: Provide all OTLP endpoints for the supported protocols of this server.
 
 requires:
   alertmanager:
@@ -153,6 +157,10 @@ requires:
     optional: true
     description: |
       Integration to help users discover Loki's deployment.
+  send-otlp:
+    interface: otlp
+    optional: true
+    description: Obtain the endpoint serving an OTLP receiver.
 
 config:
   options:

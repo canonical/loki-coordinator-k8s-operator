@@ -27,6 +27,8 @@ from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import NginxConfig
 from coordinated_workers.telemetry_correlation import TelemetryCorrelation
 from cosl.interfaces.datasource_exchange import DatasourceDict
+# from cosl.otlp import OtlpProvider
+from otlp import OtlpProvider
 from ops.model import ModelError
 from ops.pebble import Error as PebbleError
 
@@ -115,6 +117,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             secure_extra_fields={"httpHeaderValue1": "anonymous"},
             is_ingress_per_app=self.ingress.is_ready(),
         )
+
+        self._otlp = OtlpProvider(self, {"http": NginxHelper._loki_port}, path="otlp", supported_telemetries=["logs"])
 
         external_url = urlparse(self.external_url)
         self.loki_provider = LokiPushApiProvider(

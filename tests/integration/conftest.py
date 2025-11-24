@@ -19,7 +19,7 @@ store = defaultdict(str)
 
 @pytest.fixture(scope="session")
 def cos_channel():
-    return "2/edge"
+    return "dev/edge"
 
 
 def timed_memoizer(func):

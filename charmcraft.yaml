@@ -115,7 +115,7 @@ provides:
 
       To make use of this relation, you also must have either the service-mesh relation in place (e.g. istio-beacon) or
       have the istio-beacon enroll the entire model (via its config option).
-      (The service_mesh charm library manages both of these relations.)
+      The service_mesh charm library manages both of these relations.
 
 requires:
   alertmanager:

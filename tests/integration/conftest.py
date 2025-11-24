@@ -22,6 +22,11 @@ def cos_channel():
     return "dev/edge"
 
 
+@pytest.fixture(scope="session")
+def mesh_channel():
+    return "2/edge"
+
+
 def timed_memoizer(func):
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):

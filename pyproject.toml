@@ -5,7 +5,7 @@ version = "0.0"
 requires-python = "~=3.10"
 
 dependencies = [
-  "coordinated-workers @ git+https://github.com/canonical/cos-coordinated-workers.git@fix/set-exporter-port",
+  "coordinated-workers",
   "charmed-service-mesh-helpers>=0.2.0",
   "lightkube-extensions",
 ]

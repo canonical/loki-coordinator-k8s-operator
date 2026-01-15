@@ -425,7 +425,7 @@ wheels = [
 
 [[package]]
 name = "coordinated-workers"
-version = "2.2.2"
+version = "2.2.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "charmed-service-mesh-helpers" },
@@ -437,9 +437,9 @@ dependencies = [
     { name = "ops", extra = ["tracing"] },
     { name = "pydantic" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ca/3b/be8ecc3e62d69027805d40db1208f90f8ead458a2734efbd23e23be051ef/coordinated_workers-2.2.2.tar.gz", hash = "sha256:067412d04f2017923de1295ef1da16b90a8cec30d5933c6a52d228c3e99beab4", size = 418284, upload-time = "2026-01-13T14:58:25.885Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/76/ba139f8fc7c5399d3800e02a3a6f0afe5e9ddf3e8f7e7e6f942c81c3d78d/coordinated_workers-2.2.4.tar.gz", hash = "sha256:d52a5e0f504bb6db3685df78cde9625b9af52ac2bbb106d7fcff1660e54c0238", size = 421563, upload-time = "2026-01-15T14:43:26.127Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/62/e0f43fba9844546027ce3c7125fc6746233d20e9f44285046926c0a8898e/coordinated_workers-2.2.2-py3-none-any.whl", hash = "sha256:a9f3dd0f3b7efc63d63b6c87e92e5268c6d13e2aa7a5fae35c976b7ea1269411", size = 59872, upload-time = "2026-01-13T14:58:24.444Z" },
+    { url = "https://files.pythonhosted.org/packages/05/1d/05c677f2a2afdea8c2fb8710bcc97bd91046a080833e2eaaae9dac36aa07/coordinated_workers-2.2.4-py3-none-any.whl", hash = "sha256:28bc729156893001a4e0d81fb0e38c943652c59537f80a986a85192f89c1efde", size = 61039, upload-time = "2026-01-15T14:43:24.555Z" },
 ]
 
 [[package]]

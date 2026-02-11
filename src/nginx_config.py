@@ -28,6 +28,7 @@ class NginxHelper:
 
     _locations_write: List[NginxLocationConfig] = [
         NginxLocationConfig(path="/loki/api/v1/push", backend="write",modifier="="),
+        NginxLocationConfig(path="/otlp/v1/logs", backend="write",modifier="="),
     ]
 
     _locations_backend: List[NginxLocationConfig] = [

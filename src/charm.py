@@ -26,13 +26,12 @@ from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import NginxConfig
 from cosl.interfaces.datasource_exchange import DatasourceDict
-# from cosl.otlp import OtlpProvider
-from otlp import OtlpProvider
 from ops.model import ModelError
 from ops.pebble import Error as PebbleError
 
 from loki_config import LOKI_ROLES_CONFIG, LokiConfig
 from nginx_config import NginxHelper
+from otlp import OtlpProvider
 
 # Log messages can be retrieved using juju debug-log
 logger = logging.getLogger(__name__)
@@ -115,7 +114,9 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             is_ingress_per_app=self.ingress.is_ready(),
         )
 
-        self._otlp = OtlpProvider(self, {"http": NginxHelper._loki_port}, path="otlp", supported_telemetries=["logs"])
+        self._otlp = OtlpProvider(self)
+        self._otlp.add_endpoint("http", f"{self.external_url}/otlp", ["logs"])
+        self._otlp.publish()
 
         external_url = urlparse(self.external_url)
         self.loki_provider = LokiPushApiProvider(

@@ -16,7 +16,7 @@ provide OTLP telemetry for Opentelemetry-collector.
 import json
 import logging
 import socket
-from typing import ClassVar, Dict, List, Literal, Optional, Sequence, TypeAlias
+from typing import ClassVar, Dict, List, Literal, Optional, Sequence
 
 from cosl.juju_topology import JujuTopology
 from ops import CharmBase, Relation
@@ -30,21 +30,14 @@ RELATION_INTERFACE_NAME = "otlp"
 logger = logging.getLogger(__name__)
 
 
-ProtocolType: TypeAlias = Literal["http", "grpc"]
-"""OTLP protocols used by the OpenTelemetry Collector."""
-
-TelemetryType: TypeAlias = Literal["logs", "metrics", "traces"]
-"""OTLP telemetries used by the OpenTelemetry Collector."""
-
-
 class OtlpEndpoint(BaseModel):
     """A pydantic model for a single OTLP endpoint."""
 
     model_config = ConfigDict(extra="forbid")
 
-    protocol: ProtocolType
+    protocol: Literal["http", "grpc"]
     endpoint: str
-    telemetries: Sequence[TelemetryType]
+    telemetries: Sequence[Literal["logs", "metrics", "traces"]]
 
 
 class OtlpProviderAppData(BaseModel):
@@ -64,8 +57,8 @@ class OtlpConsumer(Object):
         self,
         charm: CharmBase,
         relation_name: str = DEFAULT_CONSUMER_RELATION_NAME,
-        protocols: Optional[Sequence[ProtocolType]] = None,
-        telemetries: Optional[Sequence[TelemetryType]] = None,
+        protocols: Optional[Sequence[Literal["http", "grpc"]]] = None,
+        telemetries: Optional[Sequence[Literal["logs", "metrics", "traces"]]] = None,
     ):
         super().__init__(charm, relation_name)
         self._charm = charm
@@ -164,7 +157,10 @@ class OtlpProvider(Object):
         return f"http://{socket.getfqdn()}"
 
     def add_endpoint(
-        self, protocol: ProtocolType, endpoint: str, telemetries: Sequence[TelemetryType]
+        self,
+        protocol: Literal["http", "grpc"],
+        endpoint: str,
+        telemetries: Sequence[Literal["logs", "metrics", "traces"]],
     ):
         """Add an OtlpEndpoint to the list.
 

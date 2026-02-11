@@ -124,10 +124,6 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             is_ingress_per_app=self.ingress.is_ready(),
         )
 
-        self._otlp = OtlpProvider(self)
-        self._otlp.add_endpoint("http", f"{self.external_url}/otlp", ["logs"])
-        self._otlp.publish()
-
         external_url = urlparse(self.external_url)
         self.loki_provider = LokiPushApiProvider(
             self,
@@ -347,6 +343,11 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         self.grafana_source.update_source(
             source_url=self.external_url
         )
+
+        # Receive OTLP relation
+        self._otlp = OtlpProvider(self)
+        self._otlp.add_endpoint("http", f"{self.external_url}/otlp", ["logs"])
+        self._otlp.publish()
 
         # Open necessary service ports
         nginx_port = NGINX_TLS_PORT if self.coordinator.tls_available else NGINX_PORT

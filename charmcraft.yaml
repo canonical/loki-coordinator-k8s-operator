@@ -56,11 +56,15 @@ resources:
   nginx-image:
     type: oci-image
     description: OCI image for nginx
-    upstream-source: ghcr.io/canonical/nginx@sha256:6415a2c5f25f1d313c87315a681bdc84be80f3c79c304c6744737f9b34207993 # 1.27.5 rock 
+    upstream-source: ghcr.io/canonical/nginx@sha256:6415a2c5f25f1d313c87315a681bdc84be80f3c79c304c6744737f9b34207993  # 1.27.5 rock 
   nginx-prometheus-exporter-image:
     type: oci-image
     description: OCI image for nginx-prometheus-exporter
-    upstream-source: nginx/nginx-prometheus-exporter:1.1.0
+    upstream-source: nginx/nginx-prometheus-exporter@sha256:d710e0ff2505a7037dd21e47eae07025010c0de08a6247d1a704824823becfd0  # renovate: oci-image tag: 1.1.0
+
+peers:
+  loki-peers:
+    interface: loki_peers
 
 provides:
   logging:
@@ -99,10 +103,33 @@ provides:
     optional: true
     description: |
       Integration to share with other COS components this charm's datasources, and receive theirs.
+  provide-cmr-mesh:
+    optional: true
+    interface: cross_model_mesh
+    description: |
+      Allow cross-model applications to make HTTP requests to loki via the service mesh.
+      This relation provides additional data required by the service mesh to create cross-model authorization policies
+
+      Announce a subset of juju topology to the other side because a CMR obfuscates identity.
+      Each pair of charm would need a separate relation of this kind, e.g. otelcol to loki and to prom.
+
+      To make use of this relation, you also must have either the service-mesh relation in place (e.g. istio-beacon) or
+      have the istio-beacon enroll the entire model (via its config option).
+      The service_mesh charm library manages both of these relations.
   receive-otlp:
     interface: otlp
     optional: true
-    description: Provide all OTLP endpoints for the supported protocols of this server.
+    description: |
+      Receive OTLP data with an OTLP server.
+      
+      Supported telemetries:
+        - logs
+      
+      Supported protocols:
+        - HTTP
+
+      Provide all OTLP endpoints for the supported protocols and telemetries of this server.
+
 
 requires:
   alertmanager:
@@ -153,10 +180,19 @@ requires:
     optional: true
     description: |
       Integration to help users discover Loki's deployment.
-  send-otlp:
-    interface: otlp
-    optional: true
-    description: Obtain the endpoint serving an OTLP receiver.
+  service-mesh:
+    limit: 1
+    interface: service_mesh
+    description: |
+      Subscribe this charm into a service mesh and create authorization policies.
+      We forward to the beacon our authorization policies.
+      The beacon sends the pod and service labels required by this charm to join the mesh.
+      This relation is a pre-requisite for using the provide-cmr-mesh relation.
+  require-cmr-mesh:
+    interface: cross_model_mesh
+    description: |
+      Allow a cross-model application access to loki via the service mesh.
+      This relation provides additional data required by the service mesh to enforce cross-model authorization policies.
 
 config:
   options:

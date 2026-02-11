@@ -13,7 +13,7 @@ https://discourse.charmhub.io/t/4208
 import hashlib
 import logging
 import socket
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, Union, cast
 from urllib.parse import urlparse
 
 import ops
@@ -21,10 +21,16 @@ import yaml
 from charms.alertmanager_k8s.v1.alertmanager_dispatch import AlertmanagerConsumer
 from charms.catalogue_k8s.v1.catalogue import CatalogueItem
 from charms.grafana_k8s.v0.grafana_source import GrafanaSourceProvider
+from charms.istio_beacon_k8s.v0.service_mesh import (
+    AppPolicy,
+    UnitPolicy,
+)
 from charms.loki_k8s.v1.loki_push_api import LokiPushApiProvider
 from charms.traefik_k8s.v2.ingress import IngressPerAppRequirer
 from coordinated_workers.coordinator import Coordinator
 from coordinated_workers.nginx import NginxConfig
+from coordinated_workers.telemetry_correlation import TelemetryCorrelation
+from coordinated_workers.worker_telemetry import WorkerTelemetryProxyConfig
 from cosl.interfaces.datasource_exchange import DatasourceDict
 from ops.model import ModelError
 from ops.pebble import Error as PebbleError
@@ -76,6 +82,9 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
                 "send-datasource": "send-datasource",
                 "receive-datasource": None,
                 "catalogue": "catalogue",
+                "service-mesh": "service-mesh",
+                "service-mesh-provide-cmr-mesh": "provide-cmr-mesh",
+                "service-mesh-require-cmr-mesh": "require-cmr-mesh",
             },
             nginx_config=NginxConfig(
                 server_name=self.hostname,
@@ -92,25 +101,26 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             container_name="nginx",  # container to which resource limits will be applied
             workload_tracing_protocols=["jaeger_thrift_http"],
             catalogue_item=self._catalogue_item,
+            worker_telemetry_proxy_config=self._worker_telemetry_proxy_config,
+            charm_mesh_policies=self._charm_mesh_policies,
+            peer_relation="loki-peers",
         )
 
         # needs to be after the Coordinator definition in order to push certificates before checking
         # if they exist
         if port := urlparse(self.internal_url).port:
             self.ingress.provide_ingress_requirements(port=port)
-
+        self._telemetry_correlation = TelemetryCorrelation(
+            app_name=self.app.name,
+            grafana_source_relations=self.model.relations["grafana-source"],
+            datasource_exchange_relations=self.model.relations["send-datasource"]
+        )
         self.grafana_source = GrafanaSourceProvider(
             self,
             source_type="loki",
             source_url=self.external_url,
-            extra_fields={"httpHeaderName1": "X-Scope-OrgID"},
+            extra_fields=self._build_grafana_source_extra_fields(),
             secure_extra_fields={"httpHeaderValue1": "anonymous"},
-            refresh_event=[
-                self.coordinator.cluster.on.changed,
-                self.on[self.coordinator._certificates.relationship_name].relation_changed,
-                self.ingress.on.ready,
-                self.ingress.on.revoked,
-            ],
             is_ingress_per_app=self.ingress.is_ready(),
         )
 
@@ -184,6 +194,33 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             ),
             api_docs="https://grafana.com/docs/loki/latest/reference/loki-http-api/",
             api_endpoints={key: f"{self.external_url}{path}" for key, path in api_endpoints.items()},
+        )
+
+    @property
+    def _charm_mesh_policies(self) -> List[Union[AppPolicy, UnitPolicy]]:
+        """Return the mesh policies specific to Loki."""
+        return [
+            # Allow access to loki logging API ports for charms related over the logging relation.
+            # This is a unit policy as loki's unit address is published for receving logs. Incase of ingress url, this is handled by the service_mesh ingress.
+            UnitPolicy(
+                relation="logging",
+                ports=[NGINX_PORT, NGINX_TLS_PORT],
+            ),
+            # Allow access to loki logging API ports for charms related over the grafana_source relation.
+            # This is a unit policy as loki's unit address is published. Incase of ingress url, this is handled by the service_mesh ingress.
+            UnitPolicy(
+                relation="grafana-source",
+                ports=[NGINX_PORT, NGINX_TLS_PORT],
+            )
+
+        ]
+
+    @property
+    def _worker_telemetry_proxy_config(self) -> WorkerTelemetryProxyConfig:
+        """Get the http and https ports for proxying worker telemetry."""
+        return WorkerTelemetryProxyConfig(
+            http_port=NGINX_PORT,
+            https_port=NGINX_TLS_PORT,
         )
 
     ###########################
@@ -307,7 +344,43 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
             self._set_alerts()
 
         self._update_datasource_exchange()
+        self.grafana_source.update_source(
+            source_url=self.external_url
+        )
 
+        # Open necessary service ports
+        nginx_port = NGINX_TLS_PORT if self.coordinator.tls_available else NGINX_PORT
+        self.unit.set_ports(nginx_port)
+
+    def _build_grafana_source_extra_fields(self) -> Dict[str, Any]:
+        """Extra fields needed for the grafana-source relation, like data correlation config."""
+        logs_to_traces_config = self._build_logs_to_traces_config()
+
+        return {
+            "httpHeaderName1": "X-Scope-OrgID",
+            **logs_to_traces_config,
+        }
+
+
+    def _build_logs_to_traces_config(self) -> Dict[str, Any]:
+        # TODO: move this into the grafana_source library
+        # reference: https://grafana.com/docs/grafana/latest/datasources/loki/#configure-derived-fields
+        if datasource := self._telemetry_correlation.find_correlated_datasource(
+            datasource_type="tempo",
+            correlation_feature="logs-to-traces",
+        ):
+            return {
+                "derivedFields": [{
+                        "datasourceUid": datasource.uid,
+                        "matcherRegex": "(?:traceID|trace_id|tid)=(\\w+)",
+                        "name": "traceID",
+                        # url will be interpreted as query for the datasource
+                        "url": "$${__value.raw}",
+                        "urlDisplayLabel": "View trace",
+                    }
+                ]
+            }
+        return {}
 
 if __name__ == "__main__":  # pragma: nocover
     ops.main(LokiCoordinatorK8SOperatorCharm)

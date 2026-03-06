@@ -136,6 +136,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         )
         self.loki_provider.update_endpoint(url=self.external_url)
 
+        self._otlp_provider = OtlpProvider(self)
+
         # do this regardless of what event we are processing
         self._reconcile()
 
@@ -283,14 +285,24 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
                 hashable = hashable.encode("utf-8")
             return hashlib.sha256(hashable).hexdigest()
 
-        loki_alerts = self.loki_provider.alerts
-        alerts_hash = sha256(str(loki_alerts))
+        # TODO: Check if both loki_provider and otlp_provider alerts then block bc duplicate alert rules?
+        alerts = {}
+        self.framework.breakpoint()
+        if loki_alerts := self.loki_provider.alerts:
+            alerts = loki_alerts
+        if otlp_alerts := self._otlp_provider.rules("logql"):
+            alerts = otlp_alerts
+        if loki_alerts and otlp_alerts:
+            # TODO:
+            logger.warning(f"BLOCKED: duplicate alert rules")
+
+        alerts_hash = sha256(str(alerts))
         alert_rules_changed = alerts_hash != self._pull(ALERTS_HASH_PATH)
 
         if alert_rules_changed:
             # Update the alert rules files on disk
             self._nginx_container.remove_path(RULES_DIR, recursive=True)
-            rules_file_paths: List[str] = self._push_alert_rules(loki_alerts)
+            rules_file_paths: List[str] = self._push_alert_rules(alerts)
             self._push(ALERTS_HASH_PATH, alerts_hash)
             # Push the alert rules to the Loki cluster (persisted in s3)
             logger.info(
@@ -345,9 +357,8 @@ class LokiCoordinatorK8SOperatorCharm(ops.CharmBase):
         )
 
         # Receive OTLP relation
-        self._otlp = OtlpProvider(self)
-        self._otlp.add_endpoint("http", f"{self.external_url}/otlp", ["logs"])
-        self._otlp.publish()
+        self._otlp_provider.add_endpoint("http", f"{self.external_url}/otlp", ["logs"])
+        self._otlp_provider.publish()
 
         # Open necessary service ports
         nginx_port = NGINX_TLS_PORT if self.coordinator.tls_available else NGINX_PORT

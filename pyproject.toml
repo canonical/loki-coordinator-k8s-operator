@@ -5,6 +5,7 @@ version = "0.0"
 requires-python = "~=3.10"
 
 dependencies = [
+  "cosl @ git+https://github.com/canonical/cos-lib.git@feat/more-rules-methods",
   "coordinated-workers",
   "charmed-service-mesh-helpers>=0.2.0",
   "lightkube-extensions",

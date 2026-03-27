@@ -1,3 +1,5 @@
+**⚠️ This repository has been archived, and its contents have been moved to a new location for both the coordinator and worker charms: [loki-operators](https://github.com/canonical/loki-operators).**
+
 # Loki Operator
 
 [![CharmHub Badge](https://charmhub.io/loki-coordinator-k8s/badge.svg)](https://charmhub.io/loki-coordinator-k8s)
